@@ -1,0 +1,100 @@
+{
+  "projectType": "saas",
+  "projectName": "Film Fanatic",
+  "projectDescription": "A full-stack media discovery and tracking platform for movies and TV shows with real-time synchronization",
+  "theme": "palm",
+  "primaryColor": "#6ca0fc",
+  "lightColor": "#add8f1",
+  "darkColor": "#f4f9f9",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/media-discovery",
+              "features/watchlist",
+              "features/episode-tracking",
+              "features/search"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/environment-variables",
+              "configuration/authentication",
+              "configuration/database"
+            ]
+          },
+          {
+            "group": "Development",
+            "pages": [
+              "development/architecture",
+              "development/components",
+              "development/state-management",
+              "development/routing"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Backend Functions",
+            "pages": [
+              "api/convex/users",
+              "api/convex/watchlist",
+              "api/convex/episode-progress"
+            ]
+          },
+          {
+            "group": "React Hooks",
+            "pages": [
+              "api/hooks/use-watchlist",
+              "api/hooks/use-watch-progress",
+              "api/hooks/use-local-progress-store",
+              "api/hooks/use-watchlist-import-export"
+            ]
+          },
+          {
+            "group": "TMDB Integration",
+            "pages": [
+              "api/tmdb/client",
+              "api/tmdb/queries"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Real-time media search across movies, TV shows, and people",
+    "Hybrid watchlist with local-first storage and cloud sync via Convex",
+    "Granular episode tracking with progress calculation",
+    "Multiple watch statuses and emotional reactions",
+    "Secure authentication with Clerk",
+    "Optimistic UI updates with TanStack Query",
+    "Responsive design with Tailwind CSS and Radix UI components"
+  ],
+  "publicApiSurface": [
+    "useWatchlist() - Manage watchlist items",
+    "useWatchProgress() - Track episode viewing progress",
+    "useLocalProgressStore() - Local storage management",
+    "useWatchlistImportExport() - Import/export watchlist data",
+    "tmdb() - TMDB API client with caching",
+    "Convex mutations: addToWatchlist, removeFromWatchlist, updateWatchlistItem",
+    "Convex queries: getWatchlist, getEpisodeProgress",
+    "Routes: /, /movie/:id, /tv/:id, /search, /watchlist, /person/:id"
+  ]
+}
