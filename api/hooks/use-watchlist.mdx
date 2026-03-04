@@ -181,6 +181,77 @@ function AddToWatchlistButton({ movie }) {
 }
 ```
 
+### useSetProgressStatus
+
+Update the watch progress status for a media item:
+
+```tsx
+import { useSetProgressStatus } from '@/hooks/usewatchlist';
+
+function StatusSelector({ tmdbId, mediaType }) {
+  const setStatus = useSetProgressStatus();
+  
+  return (
+    <select onChange={(e) => setStatus({
+      id: String(tmdbId),
+      mediaType,
+      progressStatus: e.target.value
+    })}>
+      <option value="want-to-watch">Want to Watch</option>
+      <option value="watching">Watching</option>
+      <option value="finished">Finished</option>
+    </select>
+  );
+}
+```
+
+### useSetReaction
+
+Set an emotional reaction for a media item:
+
+```tsx
+import { useSetReaction } from '@/hooks/usewatchlist';
+
+function ReactionButtons({ tmdbId, mediaType }) {
+  const setReaction = useSetReaction();
+  
+  return (
+    <div>
+      <button onClick={() => setReaction({
+        id: String(tmdbId),
+        mediaType,
+        reaction: 'loved'
+      })}>❤️ Loved</button>
+      <button onClick={() => setReaction({
+        id: String(tmdbId),
+        mediaType,
+        reaction: 'liked'
+      })}>👍 Liked</button>
+    </div>
+  );
+}
+```
+
+### useWatchlistItemStatus
+
+**Legacy hook** that returns the old combined status format for backward compatibility:
+
+```tsx
+import { useWatchlistItemStatus } from '@/hooks/usewatchlist';
+
+function LegacyStatusDisplay({ tmdbId, mediaType }) {
+  const status = useWatchlistItemStatus(String(tmdbId), mediaType);
+  
+  // Returns: "plan-to-watch" | "watching" | "completed" | "liked" | null
+  return <div>Status: {status}</div>;
+}
+```
+
+<Note>
+This hook maps the new split status model (progressStatus + reaction) back to the legacy 
+combined status format. New code should use `useMediaState` instead.
+</Note>
+
 ## Real-World Example
 
 ```tsx

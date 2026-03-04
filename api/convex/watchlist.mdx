@@ -360,3 +360,120 @@ await updateProgress({
 - Sets status to "finished" when progress >= 95% or `isWatched` is true
 - Sets status to "watching" when progress > 0
 - Creates new watch item if it doesn't exist
+
+---
+
+## upsertWatchlistItem
+
+**Legacy mutation** for backward compatibility during the status model rollout. Adds or updates a watchlist item using the old combined status field.
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the media item
+</ParamField>
+
+<ParamField path="mediaType" type="string" required>
+  Type of media ("movie" or "tv")
+</ParamField>
+
+<ParamField path="status" type="string" required>
+  Legacy combined status: "plan-to-watch", "watching", "completed", "liked", or "dropped"
+</ParamField>
+
+<ParamField path="progress" type="number" optional>
+  Watch progress percentage (0-100)
+</ParamField>
+
+<ParamField path="title" type="string" optional>
+  Media title
+</ParamField>
+
+<ParamField path="image" type="string" optional>
+  URL to media poster image
+</ParamField>
+
+<ParamField path="rating" type="number" optional>
+  Media rating
+</ParamField>
+
+<ParamField path="release_date" type="string" optional>
+  Media release date
+</ParamField>
+
+<ParamField path="overview" type="string" optional>
+  Media description/overview
+</ParamField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+
+const upsert = useMutation(api.watchlist.upsertWatchlistItem);
+
+await upsert({
+  tmdbId: 550,
+  mediaType: "movie",
+  status: "watching",
+  progress: 45
+});
+```
+
+<Note>
+This function maps legacy status values to the new split model (progressStatus + reaction). 
+New code should use `setWatchlistMembership`, `setProgressStatus`, and `setReaction` instead.
+</Note>
+
+---
+
+## removeWatchlistItem
+
+**Legacy mutation** that removes an item from the watchlist while preserving its progress and reaction data.
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the media item
+</ParamField>
+
+<ParamField path="mediaType" type="string" required>
+  Type of media ("movie" or "tv")
+</ParamField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+
+const remove = useMutation(api.watchlist.removeWatchlistItem);
+
+await remove({
+  tmdbId: 550,
+  mediaType: "movie"
+});
+```
+
+<Note>
+This sets `inWatchlist` to false but keeps the watch item record. 
+New code should use `setWatchlistMembership` with `inWatchlist: false` instead.
+</Note>
+
+---
+
+## backfillWatchItems
+
+**One-time migration helper** that backfills split status fields (progressStatus and reaction) for the current user's existing watch items.
+
+<ParamField path="args" type="object">
+  No arguments required
+</ParamField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+
+const backfill = useMutation(api.watchlist.backfillWatchItems);
+
+// Run migration for current user
+await backfill({});
+```
+
+<Warning>
+This is a migration utility for existing data. It processes the user's watch items 
+and maps legacy status values to the new progressStatus/reaction model.
+</Warning>
