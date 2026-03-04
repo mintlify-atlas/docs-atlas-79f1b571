@@ -1,0 +1,148 @@
+---
+title: Environment Variables
+description: Configure Film Fanatic with required API keys and service credentials
+---
+
+Film Fanatic requires several environment variables to connect to external services. Create a `.env.local` file in your project root with the following configuration.
+
+## TMDB Configuration
+
+The Movie Database (TMDB) provides all movie and TV show data.
+
+<ParamField path="VITE_TMDB_ACCESS_TOKEN" type="string" required>
+  Your TMDB API access token (Bearer token format). Get your token from [TMDB API Settings](https://www.themoviedb.org/settings/api).
+  
+  ```env
+  VITE_TMDB_ACCESS_TOKEN=eyJhbGciOiJIUzI1NiJ9...
+  ```
+</ParamField>
+
+<ParamField path="VITE_TMDB_API_URL" type="string" required>
+  The base URL for TMDB API v3 endpoints.
+  
+  ```env
+  VITE_TMDB_API_URL=https://api.themoviedb.org/3
+  ```
+</ParamField>
+
+### Getting a TMDB API Key
+
+1. Create a free account at [themoviedb.org](https://www.themoviedb.org/signup)
+2. Navigate to [API Settings](https://www.themoviedb.org/settings/api)
+3. Request an API key (choose "Developer" option)
+4. Copy your **API Read Access Token** (v4 auth) - this is your Bearer token
+5. Use this token for `VITE_TMDB_ACCESS_TOKEN`
+
+<Note>
+  Film Fanatic uses the access token (Bearer authentication) rather than the API key. Make sure to copy the "API Read Access Token" from your TMDB settings.
+</Note>
+
+## Clerk Authentication
+
+Clerk handles user authentication, sign-in, and profile management.
+
+<ParamField path="VITE_CLERK_PUBLISHABLE_KEY" type="string" required>
+  Your Clerk publishable key (client-side safe). Find this in your Clerk dashboard under API Keys.
+  
+  ```env
+  VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+  ```
+</ParamField>
+
+<ParamField path="CLERK_SECRET_KEY" type="string" required>
+  Your Clerk secret key (server-side only). Keep this secure and never commit to version control.
+  
+  ```env
+  CLERK_SECRET_KEY=sk_test_...
+  ```
+</ParamField>
+
+### Setting Up Clerk
+
+1. Create a free account at [clerk.com](https://clerk.com)
+2. Create a new application
+3. Copy your publishable and secret keys from the dashboard
+4. Configure your Clerk instance domain (see [Authentication](/configuration/authentication) for details)
+
+## Convex Backend
+
+Convex provides the real-time database and backend functions.
+
+<ParamField path="VITE_CONVEX_URL" type="string" required>
+  Your Convex deployment URL. This is generated when you deploy your Convex backend.
+  
+  ```env
+  VITE_CONVEX_URL=https://your-deployment.convex.cloud
+  ```
+</ParamField>
+
+<ParamField path="CONVEX_DEPLOY_KEY" type="string" required>
+  Your Convex deploy key for production deployments. This is only needed for CI/CD pipelines.
+  
+  ```env
+  CONVEX_DEPLOY_KEY=prod:your-deployment-key
+  ```
+</ParamField>
+
+### Getting Convex Credentials
+
+1. Create a free account at [convex.dev](https://www.convex.dev)
+2. Run `npx convex dev` in your project directory
+3. Follow the prompts to create a new project
+4. Your `VITE_CONVEX_URL` will be automatically added to `.env.local`
+5. For production, run `npx convex deploy` and use the production URL
+
+## Complete Example
+
+Here's a complete `.env.local` file with all required variables:
+
+```env .env.local
+# TMDB API Configuration
+VITE_TMDB_ACCESS_TOKEN=eyJhbGciOiJIUzI1NiJ9.your_token_here
+VITE_TMDB_API_URL=https://api.themoviedb.org/3
+
+# Clerk Authentication
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
+CLERK_SECRET_KEY=sk_test_your_secret_here
+
+# Convex Backend
+VITE_CONVEX_URL=https://your-deployment.convex.cloud
+CONVEX_DEPLOY_KEY=prod:your_deploy_key_here
+```
+
+## Environment-Specific Configuration
+
+### Development
+
+For local development, use `.env.local` with test/development keys:
+
+```bash
+pnpm dev
+```
+
+This runs both the Vite dev server and Convex dev environment in parallel.
+
+### Production
+
+For production builds, ensure all environment variables are set in your hosting platform (Vercel, Netlify, etc.):
+
+```bash
+pnpm build
+```
+
+<Warning>
+  Never commit your `.env.local` file to version control. Add it to `.gitignore` to keep your secrets safe.
+</Warning>
+
+## Validation
+
+Film Fanatic validates required environment variables at build time. If any required variable is missing, the application will throw an error:
+
+```typescript
+// From src/lib/tmdb.ts
+if (ACCESS_TOKEN === undefined || BASE_URL === undefined) {
+  throw new Error("Missing TMDB env variables");
+}
+```
+
+Make sure all variables are properly set before running the application.

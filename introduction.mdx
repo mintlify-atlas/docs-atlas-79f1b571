@@ -1,0 +1,134 @@
+---
+title: Introduction
+description: Welcome to Film Fanatic - A premium media discovery and tracking platform for modern cinephiles
+---
+
+# Welcome to Film Fanatic
+
+Film Fanatic is a premium, full-stack media discovery and tracking platform built for the modern cinephile. Experience seamless movie and TV show exploration with real-time tracking, powered by a state-of-the-art tech stack.
+
+## What is Film Fanatic?
+
+Film Fanatic combines the power of The Movie Database (TMDB) with cutting-edge web technologies to deliver an immersive experience for discovering, tracking, and managing your film and TV journey. Whether you're exploring new releases, managing your watchlist, or tracking episode-by-episode progress, Film Fanatic provides a premium user experience with local-first performance and cloud synchronization.
+
+## Key Features
+
+### Precision Discovery
+
+<Card title="Intelligent Search" icon="magnifying-glass">
+  Real-time, multi-category search across movies, TV series, and people with advanced filtering by rating and type.
+</Card>
+
+<Card title="Rich Media Context" icon="film">
+  Immersive detail pages featuring trailers, cast/crew insights, high-definition galleries, and curated collections.
+</Card>
+
+<Card title="Smart Recommendations" icon="sparkles">
+  Discover your next favorite film with context-aware suggestions based on what you're viewing.
+</Card>
+
+### Seamless Tracking and Watchlist
+
+<Card title="Hybrid Storage" icon="database">
+  Local-first performance with localStorage for guests, seamlessly synchronized to the cloud via Convex for authenticated users.
+</Card>
+
+<Card title="Granular Episode Tracking" icon="list-checks">
+  Mark individual episodes as watched. Progress automatically calculates show completion percentage.
+</Card>
+
+<Card title="Advanced Statuses" icon="tags">
+  Manage your journey with progress statuses: *Want to Watch*, *Watching*, *Finished*. Express your feelings with reactions: *Loved*, *Liked*, *Mixed*, or *Not for me*.
+</Card>
+
+### Premium User Experience
+
+<Card title="Aesthetic Design" icon="palette">
+  A stunning, responsive UI built with Tailwind CSS 4.0, featuring glassmorphism, smooth transitions, and high-fidelity posters.
+</Card>
+
+<Card title="Optimistic UI" icon="bolt">
+  Actions feel instantaneous thanks to optimistic updates and TanStack Query caching.
+</Card>
+
+<Card title="Universal Access" icon="mobile">
+  Fully responsive layout optimized for everything from ultra-wide monitors to mobile devices.
+</Card>
+
+<Card title="Identity Management" icon="shield-check">
+  Secure and simple authentication powered by Clerk.
+</Card>
+
+## Technology Stack
+
+Film Fanatic leverages modern technologies to deliver exceptional performance and developer experience:
+
+| Layer | Technology | Purpose |
+| --- | --- | --- |
+| **Framework** | [TanStack Start](https://tanstack.com/router/v1/docs/guide/start-overview) | Full-stack React framework with Nitro and React 19 |
+| **Backend** | [Convex](https://www.convex.dev/) | Real-time database with serverless functions |
+| **Authentication** | [Clerk](https://clerk.com/) | User authentication and identity management |
+| **Styling** | [Tailwind CSS 4.0](https://tailwindcss.com/) | Utility-first CSS with modern features |
+| **UI Components** | [Radix UI](https://www.radix-ui.com/) + [shadcn/ui](https://ui.shadcn.com/) | Accessible, composable component primitives |
+| **Data Fetching** | [TanStack Query](https://tanstack.com/query/latest) | Async state management and caching |
+| **State Management** | [Zustand](https://zustand-demo.pmnd.rs/) | Lightweight client-side state |
+| **Optimization** | [React Compiler](https://react.dev/learn/react-compiler) | Automatic React optimization |
+| **Images** | [@unpic/react](https://unpic.pics/img/react/) | Optimized image loading |
+| **Code Quality** | [Biome](https://biomejs.dev/) | Fast linter and formatter |
+
+## Architecture Overview
+
+Film Fanatic follows a modern full-stack architecture:
+
+<Steps>
+  <Step title="Frontend Layer">
+    Built with TanStack Start and React 19, providing SSR, file-based routing, and optimized rendering.
+  </Step>
+  
+  <Step title="Data Layer">
+    TanStack Query manages server state with intelligent caching, while Zustand handles client-side state.
+  </Step>
+  
+  <Step title="Backend Layer">
+    Convex provides real-time database operations with serverless functions, eliminating the need for traditional API routes.
+  </Step>
+  
+  <Step title="External APIs">
+    TMDB API integration for comprehensive movie and TV show data.
+  </Step>
+</Steps>
+
+## Project Structure
+
+```
+/convex          # Backend schema, mutations, and queries
+  ├── schema.ts       # Database schema definitions
+  ├── watchlist.ts    # Watchlist operations
+  ├── users.ts        # User management
+  └── auth.config.ts  # Clerk authentication config
+
+/src
+  ├── components/     # Modular UI components
+  ├── hooks/          # Custom React hooks
+  ├── lib/            # Utility functions and clients
+  ├── routes/         # File-based routing
+  └── types.d.ts      # TypeScript definitions
+
+/public             # Static assets and icons
+```
+
+<Note>
+The separation of frontend (`/src`) and backend (`/convex`) code provides clear boundaries and enables seamless deployment to different platforms.
+</Note>
+
+## What's Next?
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Get Film Fanatic running locally in under 5 minutes
+  </Card>
+  
+  <Card title="Installation" icon="download" href="/installation">
+    Detailed setup guide with prerequisites and configuration
+  </Card>
+</CardGroup>

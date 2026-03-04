@@ -1,0 +1,394 @@
+---
+title: useWatchProgress
+description: Track video playback progress and manage episode watch states for TV shows and movies
+---
+
+The watch progress system provides hooks for tracking video playback, managing episode watch states, and syncing progress across devices.
+
+## useWatchProgress
+
+Retrieves the current watch progress for a specific media item.
+
+### Usage
+
+```tsx
+import { useWatchProgress } from '@/hooks/useWatchProgress';
+
+function ResumeWatchingCard({ movieId }) {
+  const { progress } = useWatchProgress(movieId, 'movie');
+
+  if (!progress || progress.percent === 0) return null;
+
+  return (
+    <div>
+      <h3>Resume Watching</h3>
+      <ProgressBar value={progress.percent} />
+      <p>{progress.percent}% complete</p>
+    </div>
+  );
+}
+```
+
+### Parameters
+
+<ParamField path="id" type="string | number" required>
+  TMDB ID of the media item
+</ParamField>
+
+<ParamField path="mediaType" type="'movie' | 'tv'" required>
+  Type of media content
+</ParamField>
+
+### Return Values
+
+<ResponseField name="progress" type="WatchProgressData | null">
+  Watch progress information, or null if no progress exists
+  
+  <Expandable title="WatchProgressData properties">
+    <ResponseField name="id" type="string">
+      TMDB ID as string
+    </ResponseField>
+    <ResponseField name="type" type="'movie' | 'tv'">
+      Media type
+    </ResponseField>
+    <ResponseField name="percent" type="number">
+      Progress percentage (0-100)
+    </ResponseField>
+    <ResponseField name="timestamp" type="number">
+      Playback position in seconds (currently always 0)
+    </ResponseField>
+    <ResponseField name="duration" type="number">
+      Total duration in seconds (currently always 0)
+    </ResponseField>
+    <ResponseField name="lastUpdated" type="number">
+      Timestamp of last update
+    </ResponseField>
+    <ResponseField name="context" type="object | undefined">
+      Episode context for TV shows (season/episode numbers)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+## useContinueWatching
+
+Retrieves all in-progress items for a "Continue Watching" section.
+
+### Usage
+
+```tsx
+import { useContinueWatching } from '@/hooks/useWatchProgress';
+
+function ContinueWatchingSection() {
+  const { items } = useContinueWatching();
+
+  if (items.length === 0) return null;
+
+  return (
+    <section>
+      <h2>Continue Watching</h2>
+      <div className="grid">
+        {items.map((item) => (
+          <MediaCard 
+            key={item.id}
+            id={item.id}
+            type={item.type}
+            progress={item.percent}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+```
+
+### Return Values
+
+<ResponseField name="items" type="WatchProgressData[]">
+  Array of items with progress between 0% and 100% (exclusive)
+</ResponseField>
+
+<ResponseField name="allItems" type="WatchProgressData[]">
+  Same as `items` (legacy alias)
+</ResponseField>
+
+## useEpisodeWatched
+
+Comprehensive hook for managing TV show episode watch states with automatic progress synchronization.
+
+### Usage
+
+```tsx
+import { useEpisodeWatched } from '@/hooks/useWatchProgress';
+
+function EpisodeBrowser({ tvId, seasons, showMeta }) {
+  const totalEpisodes = seasons.reduce((acc, s) => acc + s.episode_count, 0);
+  
+  const episodeTracker = useEpisodeWatched(tvId, totalEpisodes, {
+    title: showMeta.name,
+    image: showMeta.poster_path,
+    release_date: showMeta.first_air_date,
+    overview: showMeta.overview,
+    rating: showMeta.vote_average,
+    status: showMeta.status,
+  });
+
+  return (
+    <div>
+      <p>Watched: {episodeTracker.watchedCount} / {totalEpisodes}</p>
+      
+      {seasons.map((season) => (
+        <SeasonCard
+          key={season.season_number}
+          season={season}
+          tracker={episodeTracker}
+        />
+      ))}
+    </div>
+  );
+}
+```
+
+### Parameters
+
+<ParamField path="tvId" type="number | string" required>
+  TMDB ID of the TV show
+</ParamField>
+
+<ParamField path="totalEpisodes" type="number" default="undefined">
+  Total episode count across all seasons (for progress calculation)
+</ParamField>
+
+<ParamField path="showMeta" type="object" default="{}">
+  TV show metadata for progress status updates
+  
+  <Expandable title="showMeta properties">
+    <ParamField path="title" type="string">
+      Show title
+    </ParamField>
+    <ParamField path="image" type="string">
+      Poster image URL
+    </ParamField>
+    <ParamField path="release_date" type="string">
+      First air date
+    </ParamField>
+    <ParamField path="overview" type="string">
+      Show description
+    </ParamField>
+    <ParamField path="rating" type="number">
+      TMDB rating
+    </ParamField>
+    <ParamField path="status" type="string">
+      Show status (e.g., "Ended", "Returning Series") - used to determine if "finished" status is appropriate
+    </ParamField>
+  </Expandable>
+</ParamField>
+
+### Return Values
+
+<ResponseField name="isEpisodeWatched" type="(season: number, episode: number) => boolean">
+  Function to check if a specific episode is marked as watched
+</ResponseField>
+
+<ResponseField name="toggleEpisodeWatched" type="(season: number, episode: number) => void">
+  Toggle watch status for a single episode. Automatically syncs progress percentage and status.
+</ResponseField>
+
+<ResponseField name="markSeasonWatched" type="(season: number, episodes: number[]) => void">
+  Mark all episodes in a season as watched. Accepts array of episode numbers.
+</ResponseField>
+
+<ResponseField name="unmarkSeasonWatched" type="(season: number, episodes: number[]) => void">
+  Unmark all episodes in a season. Accepts array of episode numbers.
+</ResponseField>
+
+<ResponseField name="isSeasonFullyWatched" type="(season: number, totalEpisodesCount: number) => boolean">
+  Check if all episodes in a season are marked as watched
+</ResponseField>
+
+<ResponseField name="getSeasonWatchedCount" type="(season: number, totalEpisodesCount: number) => number">
+  Get the count of watched episodes in a specific season
+</ResponseField>
+
+<ResponseField name="markShowCompleted" type="(totalEpisodesOverride: number) => void">
+  Mark the entire show as completed (sets progress to 100% and status to "finished")
+</ResponseField>
+
+<ResponseField name="watchedCount" type="number">
+  Total number of episodes marked as watched across all seasons
+</ResponseField>
+
+### Real-World Example
+
+```tsx
+import { useEpisodeWatched } from '@/hooks/useWatchProgress';
+
+function SeasonCard({ season, tracker, tvId }) {
+  const { season_number, episode_count } = season;
+  
+  const seenAll = tracker.isSeasonFullyWatched(season_number, episode_count);
+  const watchedCount = tracker.getSeasonWatchedCount(season_number, episode_count);
+  const episodeNumbers = Array.from({ length: episode_count }, (_, i) => i + 1);
+
+  const handleSeasonToggle = () => {
+    if (seenAll) {
+      tracker.unmarkSeasonWatched(season_number, episodeNumbers);
+    } else {
+      tracker.markSeasonWatched(season_number, episodeNumbers);
+    }
+  };
+
+  return (
+    <div>
+      <div>
+        <h3>Season {season_number}</h3>
+        <span>{watchedCount}/{episode_count} watched</span>
+        <button onClick={handleSeasonToggle}>
+          {seenAll ? 'Unmark Season' : 'Mark Season Watched'}
+        </button>
+      </div>
+      
+      {episodeNumbers.map(ep => (
+        <EpisodeRow
+          key={ep}
+          episode={ep}
+          isWatched={tracker.isEpisodeWatched(season_number, ep)}
+          onToggle={() => tracker.toggleEpisodeWatched(season_number, ep)}
+        />
+      ))}
+    </div>
+  );
+}
+```
+
+## useEpisodeProgress
+
+Get watch progress for a specific episode.
+
+### Usage
+
+```tsx
+import { useEpisodeProgress } from '@/hooks/useWatchProgress';
+
+function EpisodeCard({ tvId, season, episode }) {
+  const progress = useEpisodeProgress(tvId, season, episode);
+  
+  return (
+    <div>
+      <h4>S{season}E{episode}</h4>
+      {progress === 100 && <CheckIcon />}
+    </div>
+  );
+}
+```
+
+### Parameters
+
+<ParamField path="tvId" type="string | number" required>
+  TMDB ID of the TV show
+</ParamField>
+
+<ParamField path="season" type="number" required>
+  Season number
+</ParamField>
+
+<ParamField path="episode" type="number" required>
+  Episode number
+</ParamField>
+
+### Return Value
+
+Returns `100` if the episode is watched, `0` otherwise.
+
+## usePlayerProgressListener
+
+Listens for player events via `postMessage` and automatically persists progress.
+
+### Usage
+
+```tsx
+import { usePlayerProgressListener } from '@/hooks/useWatchProgress';
+
+function App() {
+  usePlayerProgressListener();
+  
+  return <Router />;
+}
+```
+
+### Implementation Notes
+
+- Listens for `PLAYER_EVENT` messages from embedded video player
+- Automatically saves progress every 2% change
+- Auto-marks episodes as watched at 95% completion
+- Syncs with Convex for authenticated users, localStorage for guests
+- Debounces updates to avoid excessive API calls
+
+### Player Event Format
+
+```typescript
+window.postMessage(JSON.stringify({
+  type: 'PLAYER_EVENT',
+  data: {
+    event: 'timeupdate', // or 'play', 'pause', 'ended', 'seeked'
+    currentTime: 120,
+    duration: 3600,
+    progress: 33.3,
+    id: '12345',
+    mediaType: 'tv',
+    season: 1,
+    episode: 5,
+  },
+}), '*');
+```
+
+## buildPlayerUrl
+
+Utility function to construct embedded player URLs with progress restoration.
+
+### Usage
+
+```tsx
+import { buildPlayerUrl } from '@/hooks/useWatchProgress';
+
+function WatchButton({ movie, progress }) {
+  const playerUrl = buildPlayerUrl({
+    type: 'movie',
+    tmdbId: movie.id,
+    savedProgress: progress?.percent,
+  });
+  
+  return <a href={playerUrl}>Watch Now</a>;
+}
+```
+
+### Parameters
+
+<ParamField path="type" type="'movie' | 'tv'" required>
+  Media type
+</ParamField>
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID
+</ParamField>
+
+<ParamField path="season" type="number">
+  Season number (for TV shows)
+</ParamField>
+
+<ParamField path="episode" type="number">
+  Episode number (for TV shows)
+</ParamField>
+
+<ParamField path="savedProgress" type="number">
+  Saved progress percentage. Only applied if > 10%
+</ParamField>
+
+### Return Value
+
+Returns a complete player URL with query parameters for autoplay, next episode navigation, and progress restoration.
+
+## Source
+
+**Location**: `~/workspace/source/src/hooks/useWatchProgress.ts`
+
+Progress tracking integrates with both Convex backend and local storage via Zustand.

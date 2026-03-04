@@ -1,0 +1,406 @@
+---
+title: State Management
+description: Client state with Zustand and server state with TanStack Query
+---
+
+## Overview
+
+Film Fanatic uses a hybrid state management approach:
+
+- **Zustand** - Client-side state (watchlist, episode progress)
+- **TanStack Query** - Server state & caching (TMDB data, Convex queries)
+- **Convex Optimistic Updates** - Instant UI feedback
+
+## Client State with Zustand
+
+### Watchlist Store
+
+Persists watchlist data to localStorage for logged-out users:
+
+<CodeGroup>
+```tsx src/hooks/usewatchlist.ts
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+
+interface WatchlistStore {
+  mediaState: WatchlistItem[];
+  setWatchlistMembershipLocal: (
+    id: string,
+    type: MediaType,
+    inWatchlist: boolean,
+    metadata?: MediaMetadata,
+  ) => void;
+  setProgressStatusLocal: (
+    id: string,
+    type: MediaType,
+    progressStatus: ProgressStatus,
+    progress?: number,
+    metadata?: MediaMetadata,
+  ) => void;
+  setReactionLocal: (
+    id: string,
+    type: MediaType,
+    reaction: ReactionStatus | null,
+    metadata?: MediaMetadata,
+  ) => void;
+}
+
+export const useWatchlistStore = create<WatchlistStore>()(
+  persist(
+    (set) => ({
+      mediaState: [],
+      setWatchlistMembershipLocal: (id, type, inWatchlist, metadata) =>
+        set((state) => {
+          const existingIndex = state.mediaState.findIndex((item) =>
+            isSameItem(item, id, type),
+          );
+
+          if (existingIndex === -1) {
+            if (!inWatchlist) return state;
+            const next = buildFallbackItem(id, type, metadata);
+            next.inWatchlist = true;
+            next.progressStatus = "want-to-watch";
+            return { mediaState: [next, ...state.mediaState] };
+          }
+
+          const items = [...state.mediaState];
+          items[existingIndex] = {
+            ...items[existingIndex],
+            inWatchlist,
+            title: metadata?.title ?? items[existingIndex].title,
+            updated_at: Date.now(),
+          };
+          return { mediaState: items };
+        }),
+    }),
+    {
+      name: "watchlist-storage",
+      storage: createJSONStorage(() =>
+        typeof window !== "undefined" ? window.localStorage : memoryStorage,
+      ),
+    },
+  ),
+);
+```
+
+```tsx Usage
+import { useWatchlistStore } from "@/hooks/usewatchlist";
+
+function Component() {
+  const setWatchlistMembership = useWatchlistStore(
+    (state) => state.setWatchlistMembershipLocal
+  );
+
+  const addToWatchlist = () => {
+    setWatchlistMembership("12345", "movie", true, {
+      title: "Inception",
+      image: "/poster.jpg",
+      rating: 8.8,
+    });
+  };
+}
+```
+</CodeGroup>
+
+### Episode Progress Store
+
+Tracks watched episodes for TV shows:
+
+<CodeGroup>
+```tsx src/hooks/useLocalProgressStore.ts
+import { create } from "zustand";
+import { createJSONStorage, persist } from "zustand/middleware";
+
+interface LocalProgressStore {
+  watchedEpisodes: Record<string, boolean>; // key: `${tmdbId}:${season}:${episode}`
+  markEpisodeWatched: (
+    tmdbId: number,
+    season: number,
+    episode: number,
+    isWatched: boolean,
+  ) => void;
+  markSeasonWatched: (
+    tmdbId: number,
+    season: number,
+    episodes: number[],
+    isWatched: boolean,
+  ) => void;
+  clearShowProgress: (tmdbId: number) => void;
+}
+
+export const useLocalProgressStore = create<LocalProgressStore>()(
+  persist(
+    (set) => ({
+      watchedEpisodes: {},
+
+      markEpisodeWatched: (tmdbId, season, episode, isWatched) =>
+        set((state) => {
+          const key = `${tmdbId}:${season}:${episode}`;
+          const newEpisodes = { ...state.watchedEpisodes };
+
+          if (isWatched) newEpisodes[key] = true;
+          else delete newEpisodes[key];
+
+          return { watchedEpisodes: newEpisodes };
+        }),
+
+      markSeasonWatched: (tmdbId, season, episodes, isWatched) =>
+        set((state) => {
+          const newEpisodes = { ...state.watchedEpisodes };
+
+          for (const episode of episodes) {
+            const key = `${tmdbId}:${season}:${episode}`;
+            if (isWatched) newEpisodes[key] = true;
+            else delete newEpisodes[key];
+          }
+
+          return { watchedEpisodes: newEpisodes };
+        }),
+
+      clearShowProgress: (tmdbId) =>
+        set((state) => {
+          const newEpisodes = { ...state.watchedEpisodes };
+          const prefix = `${tmdbId}:`;
+
+          for (const key of Object.keys(newEpisodes)) {
+            if (key.startsWith(prefix)) delete newEpisodes[key];
+          }
+
+          return { watchedEpisodes: newEpisodes };
+        }),
+    }),
+    {
+      name: "local-progress-store",
+      storage: createJSONStorage(() =>
+        typeof window !== "undefined" ? window.localStorage : memoryStorage,
+      ),
+    },
+  ),
+);
+```
+
+```tsx Usage
+import { useLocalProgressStore } from "@/hooks/useLocalProgressStore";
+
+function EpisodeList({ tmdbId, season }) {
+  const markEpisode = useLocalProgressStore((state) => state.markEpisodeWatched);
+
+  const handleToggle = (episode: number, isWatched: boolean) => {
+    markEpisode(tmdbId, season, episode, isWatched);
+  };
+}
+```
+</CodeGroup>
+
+## Server State with TanStack Query
+
+### Query Client Setup
+
+Configured with sensible defaults for caching:
+
+<CodeGroup>
+```tsx src/lib/query/root-provider.tsx
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+export function getContext() {
+  const queryClient = new QueryClient({
+    defaultOptions: {
+      queries: {
+        staleTime: 24 * 60 * 60 * 1000, // 24 hours
+        gcTime: 60 * 60 * 1000, // 1 hour
+        retry: 0,
+      },
+    },
+  });
+  return { queryClient };
+}
+
+export function Provider({
+  children,
+  queryClient,
+}: {
+  children: React.ReactNode;
+  queryClient: QueryClient;
+}) {
+  return (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+}
+```
+
+```tsx src/router.tsx
+import { createRouter } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
+import * as TanstackQuery from "@/lib/query/root-provider";
+
+export const getRouter = () => {
+  const rqContext = TanstackQuery.getContext();
+
+  const router = createRouter({
+    routeTree,
+    context: { ...rqContext },
+    defaultPreload: "viewport", // Prefetch on viewport
+    defaultStaleTime: 30 * 1000,
+  });
+
+  setupRouterSsrQueryIntegration({
+    router,
+    queryClient: rqContext.queryClient,
+    handleRedirects: true,
+    wrapQueryClient: true,
+  });
+
+  return router;
+};
+```
+</CodeGroup>
+
+## Optimistic Updates with Convex
+
+### Toggle Watchlist with Instant Feedback
+
+<CodeGroup>
+```tsx src/hooks/usewatchlist.ts
+import { useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+
+export function useToggleWatchlistItem() {
+  const { isSignedIn } = useUser();
+  const setWatchlistMembership = useMutation(
+    api.watchlist.setWatchlistMembership,
+  ).withOptimisticUpdate((localStore, args) => {
+    const current = localStore.getQuery(api.watchlist.getWatchlist, {}) ?? [];
+    
+    if (args.inWatchlist) {
+      const existing = current.find(
+        (i) => i.tmdbId === args.tmdbId && i.mediaType === args.mediaType,
+      );
+      
+      if (existing) {
+        // Update existing item
+        localStore.setQuery(
+          api.watchlist.getWatchlist,
+          {},
+          current.map((i) =>
+            i === existing
+              ? { ...i, inWatchlist: true, updatedAt: Date.now() }
+              : i,
+          ),
+        );
+      } else {
+        // Add new item
+        localStore.setQuery(api.watchlist.getWatchlist, {}, [
+          ...current,
+          {
+            tmdbId: args.tmdbId,
+            mediaType: args.mediaType,
+            title: args.title,
+            image: args.image,
+            rating: args.rating,
+            inWatchlist: true,
+            updatedAt: Date.now(),
+          },
+        ]);
+      }
+    } else {
+      // Remove from watchlist
+      localStore.setQuery(
+        api.watchlist.getWatchlist,
+        {},
+        current.map((i) =>
+          i.tmdbId === args.tmdbId && i.mediaType === args.mediaType
+            ? { ...i, inWatchlist: false }
+            : i,
+        ),
+      );
+    }
+  });
+
+  return useCallback(async (item) => {
+    if (isSignedIn) {
+      await setWatchlistMembership({
+        tmdbId: Number(item.id),
+        mediaType: item.media_type,
+        inWatchlist: !isInWatchlist,
+        title: item.title,
+        image: item.image,
+        rating: item.rating,
+      });
+    } else {
+      // Fallback to local storage for logged-out users
+      setLocalWatchlistMembership(item.id, item.media_type, !isInWatchlist, {
+        title: item.title,
+        image: item.image,
+        rating: item.rating,
+      });
+    }
+  }, [isSignedIn, setWatchlistMembership]);
+}
+```
+
+```tsx Component Usage
+import { useToggleWatchlistItem } from "@/hooks/usewatchlist";
+
+function MovieCard({ movie }) {
+  const toggle = useToggleWatchlistItem();
+
+  const handleClick = async () => {
+    // UI updates instantly via optimistic update
+    await toggle({
+      id: String(movie.id),
+      title: movie.title,
+      rating: movie.vote_average,
+      image: movie.poster_path,
+      media_type: "movie",
+      release_date: movie.release_date,
+    });
+  };
+
+  return <button onClick={handleClick}>Add to Watchlist</button>;
+}
+```
+</CodeGroup>
+
+## Hybrid State Pattern
+
+For logged-out users, state is stored in Zustand + localStorage.
+For logged-in users, state syncs to Convex with optimistic updates.
+
+<CodeGroup>
+```tsx Unified Hook Pattern
+export function useWatchlist() {
+  const { isSignedIn } = useUser();
+  const convexWatchlistData = useQuery(
+    api.watchlist.getWatchlist,
+    isSignedIn ? {} : "skip",
+  );
+  const localMediaState = useWatchlistStore((state) => state.mediaState);
+
+  const watchlist: WatchlistItem[] = useMemo(() => {
+    if (isSignedIn) {
+      // Use Convex data for logged-in users
+      if (!convexWatchlistData) return [];
+      return convexWatchlistData
+        .map((item) => mapConvexItemToWatchlistItem(item))
+        .filter((item) => item.inWatchlist)
+        .sort((a, b) => b.updated_at - a.updated_at);
+    }
+
+    // Use local Zustand store for logged-out users
+    return [...localMediaState]
+      .filter((item) => item.inWatchlist)
+      .sort((a, b) => b.updated_at - a.updated_at);
+  }, [isSignedIn, convexWatchlistData, localMediaState]);
+
+  return { watchlist, loading };
+}
+```
+</CodeGroup>
+
+## Key Benefits
+
+1. **Instant feedback** - Optimistic updates make UI feel responsive
+2. **Offline support** - Zustand + localStorage for logged-out users
+3. **Type safety** - Auto-generated Convex types
+4. **Efficient caching** - TanStack Query reduces API calls
+5. **SSR compatible** - Server state hydration with TanStack Router

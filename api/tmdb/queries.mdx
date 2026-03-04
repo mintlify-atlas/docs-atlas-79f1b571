@@ -1,0 +1,639 @@
+---
+title: 'Query Functions'
+description: 'TMDB API query functions for movies, TV shows, people, and search'
+---
+
+## Overview
+
+Query functions provide type-safe, high-level access to TMDB API endpoints. All functions use the [`tmdb()` client](/api/tmdb/client) under the hood and include automatic validation.
+
+## Media Lists
+
+### getMedia()
+
+Get an array of media items from various list endpoints (popular, top-rated, trending, etc.).
+
+```typescript
+async function getMedia({ type, page }: MediaQuery): Promise<MediaListResultsEntity[]>
+```
+
+<ParamField path="type" type="string" required>
+  The type of media list to fetch:
+  - `"movies_popular"` - Popular movies
+  - `"movies_top-rated"` - Top-rated movies
+  - `"movies_upcoming"` - Upcoming movies
+  - `"tv-shows_popular"` - Popular TV shows
+  - `"tv-shows_top-rated"` - Top-rated TV shows
+  - `"trending_day"` - Trending today (all media types)
+  - `"trending_week"` - Trending this week (all media types)
+</ParamField>
+
+<ParamField path="page" type="number">
+  Page number for pagination (defaults to 1)
+</ParamField>
+
+#### Example
+
+```typescript
+import { getMedia } from '@/lib/queries';
+
+const popularMovies = await getMedia({ 
+  type: 'movies_popular', 
+  page: 1 
+});
+
+popularMovies.forEach(movie => {
+  console.log(movie.title, movie.vote_average);
+});
+```
+
+### getMediaList()
+
+Get the full paginated response object including metadata.
+
+```typescript
+async function getMediaList({ type, page }: MediaListQuery): Promise<MediaListResults>
+```
+
+<ParamField path="type" type="string" required>
+  The type of media list:
+  - `"movies_popular"` - Popular movies
+  - `"movies_now-playing"` - Now playing in theaters
+  - `"movies_top-rated"` - Top-rated movies
+  - `"movies_upcoming"` - Upcoming releases
+  - `"tv-shows_airing-today"` - TV shows airing today
+  - `"tv-shows_on-the-air"` - TV shows currently on the air
+  - `"tv-shows_popular"` - Popular TV shows
+  - `"tv-shows_top-rated"` - Top-rated TV shows
+</ParamField>
+
+<ParamField path="page" type="number" required>
+  Page number for pagination
+</ParamField>
+
+#### Example
+
+```typescript
+import { getMediaList } from '@/lib/queries';
+
+const response = await getMediaList({ 
+  type: 'movies_now-playing', 
+  page: 2 
+});
+
+console.log(`Page ${response.page} of ${response.total_pages}`);
+console.log(`Total results: ${response.total_results}`);
+console.log(`Movies:`, response.results);
+```
+
+## Search
+
+### getSearchResult()
+
+Search across movies, TV shows, and people using TMDB's multi-search endpoint.
+
+```typescript
+async function getSearchResult(query: string, page: number): Promise<SearchResults>
+```
+
+<ParamField path="query" type="string" required>
+  Search query string
+</ParamField>
+
+<ParamField path="page" type="number" required>
+  Page number for pagination
+</ParamField>
+
+#### Example
+
+```typescript
+import { getSearchResult } from '@/lib/queries';
+
+const results = await getSearchResult('inception', 1);
+
+results.results?.forEach(item => {
+  console.log(item.media_type); // 'movie', 'tv', or 'person'
+  console.log(item.title || item.name);
+});
+```
+
+## Movies
+
+### getBasicMovieDetails()
+
+Get lightweight movie information with long-term caching (48 hours).
+
+```typescript
+async function getBasicMovieDetails({ id }: { id: number }): Promise<BasicMovie>
+```
+
+<ParamField path="id" type="number" required>
+  TMDB movie ID (validated to be a valid integer)
+</ParamField>
+
+#### Example
+
+```typescript
+import { getBasicMovieDetails } from '@/lib/queries';
+
+const movie = await getBasicMovieDetails({ id: 550 });
+console.log(movie.title); // "Fight Club"
+console.log(movie.runtime); // 139
+```
+
+### getMovieDetails()
+
+Get comprehensive movie details including credits, images, videos, keywords, and more.
+
+```typescript
+async function getMovieDetails({ id }: { id: number }): Promise<Movie>
+```
+
+<ParamField path="id" type="number" required>
+  TMDB movie ID
+</ParamField>
+
+#### Included Data
+
+This function uses `append_to_response` to include:
+- External IDs (IMDb, social media)
+- Images (posters, backdrops, logos)
+- Credits (cast and crew)
+- Videos (trailers, clips)
+- Collections
+- Release dates and certifications
+- Keywords
+
+#### Example
+
+```typescript
+import { getMovieDetails } from '@/lib/queries';
+
+const movie = await getMovieDetails({ id: 550 });
+
+console.log(movie.title);
+console.log(movie.credits.cast.slice(0, 3)); // Top 3 cast members
+console.log(movie.keywords.keywords); // Associated keywords
+console.log(movie.videos.results); // Trailers and clips
+```
+
+### getMovieRecommendations()
+
+Get recommended movies based on a specific movie.
+
+```typescript
+async function getMovieRecommendations({ id }: { id: number }): Promise<MovieRecommendationsResultsEntity[]>
+```
+
+<ParamField path="id" type="number" required>
+  TMDB movie ID
+</ParamField>
+
+#### Example
+
+```typescript
+import { getMovieRecommendations } from '@/lib/queries';
+
+const recommendations = await getMovieRecommendations({ id: 550 });
+recommendations.forEach(rec => {
+  console.log(rec.title, rec.vote_average);
+});
+```
+
+## TV Shows
+
+### getBasicTvDetails()
+
+Get lightweight TV show information with long-term caching (48 hours).
+
+```typescript
+async function getBasicTvDetails({ id }: { id: number }): Promise<BasicTv>
+```
+
+<ParamField path="id" type="number" required>
+  TMDB TV show ID
+</ParamField>
+
+#### Example
+
+```typescript
+import { getBasicTvDetails } from '@/lib/queries';
+
+const show = await getBasicTvDetails({ id: 1396 });
+console.log(show.name); // "Breaking Bad"
+console.log(show.number_of_seasons);
+```
+
+### getTvDetails()
+
+Get comprehensive TV show details including all metadata.
+
+```typescript
+async function getTvDetails({ id }: { id: number }): Promise<Tv>
+```
+
+<ParamField path="id" type="number" required>
+  TMDB TV show ID
+</ParamField>
+
+#### Included Data
+
+- External IDs
+- Images (posters, backdrops, logos)
+- Credits (cast and crew)
+- Videos (trailers, clips)
+- Recommendations
+- Keywords
+- Content ratings
+
+#### Example
+
+```typescript
+import { getTvDetails } from '@/lib/queries';
+
+const show = await getTvDetails({ id: 1396 });
+
+console.log(show.name);
+console.log(show.seasons); // All seasons
+console.log(show.created_by); // Creators
+console.log(show.content_ratings.results); // Ratings by region
+```
+
+### getTvSeriesRecommendations()
+
+Get recommended TV shows based on a specific show.
+
+```typescript
+async function getTvSeriesRecommendations({ id }: { id: number }): Promise<TvRecommendationsResultsEntity[]>
+```
+
+<ParamField path="id" type="number" required>
+  TMDB TV show ID
+</ParamField>
+
+#### Example
+
+```typescript
+import { getTvSeriesRecommendations } from '@/lib/queries';
+
+const recommendations = await getTvSeriesRecommendations({ id: 1396 });
+recommendations.forEach(rec => {
+  console.log(rec.name, rec.vote_average);
+});
+```
+
+### getTvSeasonDetails()
+
+Get detailed information about a specific season, including all episodes.
+
+```typescript
+async function getTvSeasonDetails({ tvId, seasonNumber }: { 
+  tvId: number; 
+  seasonNumber: number 
+}): Promise<TvSeasonDetail>
+```
+
+<ParamField path="tvId" type="number" required>
+  TMDB TV show ID
+</ParamField>
+
+<ParamField path="seasonNumber" type="number" required>
+  Season number (e.g., 1, 2, 3)
+</ParamField>
+
+#### Example
+
+```typescript
+import { getTvSeasonDetails } from '@/lib/queries';
+
+const season = await getTvSeasonDetails({ 
+  tvId: 1396, 
+  seasonNumber: 1 
+});
+
+console.log(season.name); // "Season 1"
+console.log(`${season.episodes.length} episodes`);
+season.episodes.forEach(ep => {
+  console.log(`${ep.episode_number}. ${ep.name}`);
+});
+```
+
+## Shared Media Functions
+
+### getCredits()
+
+Get cast and crew credits for either a movie or TV show.
+
+```typescript
+async function getCredits({ id, type }: { 
+  id: number; 
+  type: 'movie' | 'tv' 
+}): Promise<Credits>
+```
+
+<ParamField path="id" type="number" required>
+  TMDB media ID
+</ParamField>
+
+<ParamField path="type" type="'movie' | 'tv'" required>
+  Media type
+</ParamField>
+
+#### Example
+
+```typescript
+import { getCredits } from '@/lib/queries';
+
+const credits = await getCredits({ id: 550, type: 'movie' });
+
+const director = credits.crew?.find(c => c.job === 'Director');
+console.log('Director:', director?.name);
+
+const topCast = credits.cast?.slice(0, 5);
+console.log('Top cast:', topCast?.map(c => c.name));
+```
+
+### getImages()
+
+Get posters, backdrops, and logos for a movie or TV show.
+
+```typescript
+async function getImages({ id, type }: { 
+  id: number; 
+  type: 'movie' | 'tv' 
+}): Promise<MediaImages>
+```
+
+<ParamField path="id" type="number" required>
+  TMDB media ID
+</ParamField>
+
+<ParamField path="type" type="'movie' | 'tv'" required>
+  Media type
+</ParamField>
+
+#### Example
+
+```typescript
+import { getImages } from '@/lib/queries';
+
+const images = await getImages({ id: 550, type: 'movie' });
+
+console.log(`${images.posters?.length} posters`);
+console.log(`${images.backdrops?.length} backdrops`);
+console.log(`${images.logos?.length} logos`);
+```
+
+### getVideos()
+
+Get trailers, clips, and other videos for a movie or TV show.
+
+```typescript
+async function getVideos({ id, type }: { 
+  id: number; 
+  type: 'movie' | 'tv' 
+}): Promise<MediaVideosResultsEntity[]>
+```
+
+<ParamField path="id" type="number" required>
+  TMDB media ID
+</ParamField>
+
+<ParamField path="type" type="'movie' | 'tv'" required>
+  Media type
+</ParamField>
+
+#### Example
+
+```typescript
+import { getVideos } from '@/lib/queries';
+
+const videos = await getVideos({ id: 550, type: 'movie' });
+
+const trailers = videos.filter(v => v.type === 'Trailer');
+trailers.forEach(trailer => {
+  console.log(trailer.name);
+  console.log(`https://youtube.com/watch?v=${trailer.key}`);
+});
+```
+
+### getMediaRecommendations()
+
+Get recommendations for any media type with pagination.
+
+```typescript
+async function getMediaRecommendations({ type, id, page }: { 
+  type: string; 
+  id: number; 
+  page: number 
+}): Promise<MediaRecommendations>
+```
+
+<ParamField path="type" type="string" required>
+  Media type (e.g., 'movie', 'tv')
+</ParamField>
+
+<ParamField path="id" type="number" required>
+  TMDB media ID
+</ParamField>
+
+<ParamField path="page" type="number" required>
+  Page number for pagination
+</ParamField>
+
+## Discovery & Filtering
+
+### getCollection()
+
+Get details about a movie collection (e.g., "The Matrix Collection").
+
+```typescript
+async function getCollection({ id }: { id: number }): Promise<Collection>
+```
+
+<ParamField path="id" type="number" required>
+  TMDB collection ID
+</ParamField>
+
+#### Example
+
+```typescript
+import { getCollection } from '@/lib/queries';
+
+const collection = await getCollection({ id: 2344 });
+console.log(collection.name); // "The Matrix Collection"
+console.log(`${collection.parts?.length} movies`);
+```
+
+### getDiscoverMovies()
+
+Discover movies by keyword, sorted by popularity.
+
+```typescript
+async function getDiscoverMovies({ with_keywords, page }: { 
+  with_keywords: string; 
+  page: number 
+}): Promise<MediaListResults>
+```
+
+<ParamField path="with_keywords" type="string" required>
+  Comma-separated keyword IDs
+</ParamField>
+
+<ParamField path="page" type="number" required>
+  Page number
+</ParamField>
+
+#### Example
+
+```typescript
+import { getDiscoverMovies } from '@/lib/queries';
+
+const movies = await getDiscoverMovies({ 
+  with_keywords: '9715,9717', // time travel keywords
+  page: 1 
+});
+```
+
+### getDiscoverMoviesByGenre()
+
+Discover movies by genre, sorted by popularity.
+
+```typescript
+async function getDiscoverMoviesByGenre({ with_genres, page }: { 
+  with_genres: string; 
+  page: number 
+}): Promise<MediaListResults>
+```
+
+<ParamField path="with_genres" type="string" required>
+  Comma-separated genre IDs (e.g., '28' for Action, '35' for Comedy)
+</ParamField>
+
+<ParamField path="page" type="number" required>
+  Page number
+</ParamField>
+
+#### Example
+
+```typescript
+import { getDiscoverMoviesByGenre } from '@/lib/queries';
+
+const sciFiMovies = await getDiscoverMoviesByGenre({ 
+  with_genres: '878', // Science Fiction
+  page: 1 
+});
+```
+
+### getKeywordDetails()
+
+Get information about a specific keyword.
+
+```typescript
+async function getKeywordDetails({ id }: { id: number }): Promise<{ id: number; name: string }>
+```
+
+<ParamField path="id" type="number" required>
+  TMDB keyword ID
+</ParamField>
+
+#### Example
+
+```typescript
+import { getKeywordDetails } from '@/lib/queries';
+
+const keyword = await getKeywordDetails({ id: 9715 });
+console.log(keyword.name); // e.g., "time travel"
+```
+
+## People
+
+### getPersonDetails()
+
+Get comprehensive information about a person including biography, filmography, and images.
+
+```typescript
+async function getPersonDetails({ id }: { id: number }): Promise<PersonDetails>
+```
+
+<ParamField path="id" type="number" required>
+  TMDB person ID
+</ParamField>
+
+#### Included Data
+
+- Biography and personal information
+- Movie credits (cast and crew)
+- TV credits (cast and crew)
+- Images
+- External IDs (IMDb, social media)
+
+#### Example
+
+```typescript
+import { getPersonDetails } from '@/lib/queries';
+
+const person = await getPersonDetails({ id: 287 });
+
+console.log(person.name); // "Brad Pitt"
+console.log(person.biography);
+console.log(person.known_for_department); // "Acting"
+
+// Movie credits
+person.movie_credits.cast.forEach(role => {
+  console.log(`${role.title} as ${role.character}`);
+});
+
+// TV credits
+person.tv_credits.cast.forEach(role => {
+  console.log(`${role.name} as ${role.character}`);
+});
+```
+
+## Error Handling
+
+All query functions use `validateResponse()` and `validateId()` utilities:
+
+```typescript
+import { getMovieDetails } from '@/lib/queries';
+
+try {
+  const movie = await getMovieDetails({ id: 550 });
+  console.log(movie.title);
+} catch (error) {
+  if (error instanceof Error) {
+    // Could be:
+    // - "Invalid ID: ..." (from validateId)
+    // - "API request failed: ..." (from validateResponse)
+    // - "No data found in response" (from validateResponse)
+    console.error(error.message);
+  }
+}
+```
+
+## ID Validation
+
+All functions that accept an `id` parameter validate it using `validateId()`, which ensures:
+
+- The ID is an integer
+- The ID is within the valid range: -2,147,483,648 to 2,147,483,647
+
+Invalid IDs throw an error before making any API request.
+
+## Type Safety
+
+All functions return fully-typed responses based on TypeScript interfaces defined in `src/types.d.ts`. Import types as needed:
+
+```typescript
+import type { 
+  Movie, 
+  Tv, 
+  SearchResults, 
+  MediaListResults,
+  PersonDetails 
+} from '@/types';
+```
+
+## Source Code
+
+Location: `src/lib/queries.ts`

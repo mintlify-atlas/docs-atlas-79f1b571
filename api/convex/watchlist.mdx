@@ -1,0 +1,362 @@
+---
+title: 'Watchlist Functions'
+description: 'Convex functions for managing user watchlists and media tracking'
+---
+
+Watchlist functions handle adding, removing, and querying media items in a user's watchlist, as well as tracking watch progress and reactions.
+
+## getWatchlist
+
+Retrieves all media items in the current user's watchlist.
+
+<ResponseField name="items" type="array">
+  Array of watch items that are marked as in the watchlist
+  
+  <ResponseField name="_id" type="Id<'watch_items'>">
+    Unique identifier for the watch item
+  </ResponseField>
+  
+  <ResponseField name="tmdbId" type="number">
+    The Movie Database (TMDB) ID for the media
+  </ResponseField>
+  
+  <ResponseField name="mediaType" type="string">
+    Type of media (e.g., "movie", "tv")
+  </ResponseField>
+  
+  <ResponseField name="inWatchlist" type="boolean">
+    Whether the item is in the watchlist
+  </ResponseField>
+  
+  <ResponseField name="progressStatus" type="string" optional>
+    Current watch status: "want-to-watch", "watching", or "finished"
+  </ResponseField>
+  
+  <ResponseField name="progress" type="number" optional>
+    Watch progress percentage (0-100)
+  </ResponseField>
+  
+  <ResponseField name="reaction" type="string" optional>
+    User reaction: "liked" or "not-for-me"
+  </ResponseField>
+  
+  <ResponseField name="title" type="string" optional>
+    Media title
+  </ResponseField>
+  
+  <ResponseField name="image" type="string" optional>
+    URL to media poster/image
+  </ResponseField>
+  
+  <ResponseField name="rating" type="number" optional>
+    Media rating
+  </ResponseField>
+</ResponseField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useQuery } from "convex/react";
+
+const watchlist = useQuery(api.watchlist.getWatchlist);
+
+watchlist?.forEach(item => {
+  console.log(`${item.title} - ${item.progressStatus}`);
+});
+```
+
+---
+
+## getMediaState
+
+Retrieves the tracking state for a specific media item, regardless of watchlist membership.
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the media item
+</ParamField>
+
+<ParamField path="mediaType" type="string" required>
+  Type of media ("movie" or "tv")
+</ParamField>
+
+<ResponseField name="watchItem" type="object | null">
+  The watch item object if it exists, or null
+</ResponseField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useQuery } from "convex/react";
+
+const mediaState = useQuery(api.watchlist.getMediaState, {
+  tmdbId: 550,
+  mediaType: "movie"
+});
+
+if (mediaState) {
+  console.log(`Progress: ${mediaState.progress}%`);
+  console.log(`Status: ${mediaState.progressStatus}`);
+}
+```
+
+---
+
+## setWatchlistMembership
+
+Adds or removes a media item from the user's watchlist.
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the media item
+</ParamField>
+
+<ParamField path="mediaType" type="string" required>
+  Type of media ("movie" or "tv")
+</ParamField>
+
+<ParamField path="inWatchlist" type="boolean" required>
+  Whether to add (true) or remove (false) from watchlist
+</ParamField>
+
+<ParamField path="title" type="string" optional>
+  Media title
+</ParamField>
+
+<ParamField path="image" type="string" optional>
+  URL to media poster image
+</ParamField>
+
+<ParamField path="rating" type="number" optional>
+  Media rating
+</ParamField>
+
+<ParamField path="release_date" type="string" optional>
+  Media release date
+</ParamField>
+
+<ParamField path="overview" type="string" optional>
+  Media description/overview
+</ParamField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+
+const setWatchlistMembership = useMutation(api.watchlist.setWatchlistMembership);
+
+// Add to watchlist
+await setWatchlistMembership({
+  tmdbId: 550,
+  mediaType: "movie",
+  inWatchlist: true,
+  title: "Fight Club",
+  image: "https://image.tmdb.org/poster.jpg",
+  rating: 8.4
+});
+
+// Remove from watchlist
+await setWatchlistMembership({
+  tmdbId: 550,
+  mediaType: "movie",
+  inWatchlist: false
+});
+```
+
+### Behavior
+
+- Creates a new watch item if it doesn't exist (when adding to watchlist)
+- Updates existing watch item's watchlist membership
+- When adding to watchlist, sets default `progressStatus` to "want-to-watch"
+- Preserves existing progress and reaction data when toggling membership
+
+---
+
+## setProgressStatus
+
+Updates the watch progress status for a media item.
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the media item
+</ParamField>
+
+<ParamField path="mediaType" type="string" required>
+  Type of media ("movie" or "tv")
+</ParamField>
+
+<ParamField path="progressStatus" type="string" required>
+  Progress status: "want-to-watch", "watching", or "finished"
+</ParamField>
+
+<ParamField path="progress" type="number" optional>
+  Watch progress percentage (0-100)
+</ParamField>
+
+<ParamField path="title" type="string" optional>
+  Media title
+</ParamField>
+
+<ParamField path="image" type="string" optional>
+  URL to media poster image
+</ParamField>
+
+<ParamField path="rating" type="number" optional>
+  Media rating
+</ParamField>
+
+<ParamField path="release_date" type="string" optional>
+  Media release date
+</ParamField>
+
+<ParamField path="overview" type="string" optional>
+  Media description/overview
+</ParamField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+
+const setProgressStatus = useMutation(api.watchlist.setProgressStatus);
+
+// Mark as watching
+await setProgressStatus({
+  tmdbId: 550,
+  mediaType: "movie",
+  progressStatus: "watching",
+  progress: 45
+});
+
+// Mark as finished
+await setProgressStatus({
+  tmdbId: 550,
+  mediaType: "movie",
+  progressStatus: "finished"
+});
+```
+
+### Behavior
+
+- Auto-sets progress to 0 when status is "want-to-watch"
+- Auto-sets progress to 100 when status is "finished"
+- Creates new watch item if it doesn't exist
+- Updates existing item if found
+
+---
+
+## setReaction
+
+Sets or clears a user's reaction to a media item.
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the media item
+</ParamField>
+
+<ParamField path="mediaType" type="string" required>
+  Type of media ("movie" or "tv")
+</ParamField>
+
+<ParamField path="reaction" type="string" optional>
+  Reaction: "liked" or "not-for-me"
+</ParamField>
+
+<ParamField path="clearReaction" type="boolean" optional>
+  Set to true to clear the reaction
+</ParamField>
+
+<ParamField path="title" type="string" optional>
+  Media title
+</ParamField>
+
+<ParamField path="image" type="string" optional>
+  URL to media poster image
+</ParamField>
+
+<ParamField path="rating" type="number" optional>
+  Media rating
+</ParamField>
+
+<ParamField path="release_date" type="string" optional>
+  Media release date
+</ParamField>
+
+<ParamField path="overview" type="string" optional>
+  Media description/overview
+</ParamField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+
+const setReaction = useMutation(api.watchlist.setReaction);
+
+// Like a movie
+await setReaction({
+  tmdbId: 550,
+  mediaType: "movie",
+  reaction: "liked"
+});
+
+// Mark as not for me
+await setReaction({
+  tmdbId: 550,
+  mediaType: "movie",
+  reaction: "not-for-me"
+});
+
+// Clear reaction
+await setReaction({
+  tmdbId: 550,
+  mediaType: "movie",
+  clearReaction: true
+});
+```
+
+---
+
+## updateProgress
+
+Updates watch progress for a media item, typically called from the video player.
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the media item
+</ParamField>
+
+<ParamField path="mediaType" type="string" required>
+  Type of media ("movie" or "tv")
+</ParamField>
+
+<ParamField path="progress" type="number" optional>
+  Watch progress percentage (0-100)
+</ParamField>
+
+<ParamField path="status" type="string" optional>
+  Legacy status field for compatibility
+</ParamField>
+
+<ParamField path="isWatched" type="boolean" optional>
+  Set to true to mark as fully watched (sets progress to 100)
+</ParamField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+
+const updateProgress = useMutation(api.watchlist.updateProgress);
+
+// Update progress from video player
+await updateProgress({
+  tmdbId: 550,
+  mediaType: "movie",
+  progress: 67.5
+});
+
+// Mark as fully watched
+await updateProgress({
+  tmdbId: 550,
+  mediaType: "movie",
+  isWatched: true
+});
+```
+
+### Behavior
+
+- Auto-infers `progressStatus` based on progress percentage
+- Sets status to "finished" when progress >= 95% or `isWatched` is true
+- Sets status to "watching" when progress > 0
+- Creates new watch item if it doesn't exist

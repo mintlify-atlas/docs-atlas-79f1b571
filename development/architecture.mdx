@@ -1,0 +1,167 @@
+---
+title: Architecture Overview
+description: Technical stack and project structure for Film Fanatic
+---
+
+## Tech Stack
+
+Film Fanatic is built with a modern, type-safe full-stack architecture:
+
+### Core Framework
+- **TanStack Start** - Full-stack React framework with SSR support
+- **React 19** - Latest React with compiler optimizations
+- **TypeScript** - Type-safe development throughout
+- **Vite** - Lightning-fast build tool and dev server
+
+### Backend & Data
+- **Convex** - Real-time backend database and API
+- **Clerk** - Authentication and user management
+- **TMDB API** - Movie and TV show data source
+
+### UI & Styling
+- **Tailwind CSS 4** - Utility-first CSS framework
+- **Radix UI** - Accessible, unstyled component primitives
+- **shadcn/ui** - Pre-built component patterns
+- **Lucide React** - Icon library
+
+### State Management
+- **TanStack Query** - Server state & caching
+- **Zustand** - Client-side state management
+- **TanStack Router** - File-based routing with type safety
+
+### Build Optimization
+- **Terser** - JavaScript minification
+- **React Compiler** - Automatic memoization via Babel plugin
+- **Code Splitting** - Vendor, TanStack, Convex, and Clerk chunks
+
+## Project Structure
+
+```
+src/
+├── components/          # React components
+│   ├── ui/             # shadcn/ui base components
+│   └── media/          # Media-specific components
+├── routes/             # TanStack Router file-based routes
+│   ├── __root.tsx      # Root layout with providers
+│   ├── index.tsx       # Homepage
+│   ├── movie/          # Movie detail routes
+│   ├── tv/             # TV show detail routes
+│   └── watchlist.tsx   # User watchlist page
+├── hooks/              # Custom React hooks
+│   ├── usewatchlist.ts # Watchlist state management
+│   └── useLocalProgressStore.ts # Episode tracking
+├── lib/                # Utility functions
+│   ├── query/          # TanStack Query setup
+│   ├── tmdb.ts         # TMDB API client
+│   └── utils.ts        # Shared utilities
+├── constants.ts        # App-wide constants
+├── types.d.ts          # TypeScript type definitions
+├── router.tsx          # Router configuration
+└── styles.css          # Global styles
+
+convex/                 # Convex backend
+├── watchlist.ts        # Watchlist mutations & queries
+└── _generated/         # Auto-generated types
+
+public/                 # Static assets
+```
+
+## Build Configuration
+
+<CodeGroup>
+```typescript vite.config.ts
+import { defineConfig } from "vite";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import viteReact from "@vitejs/plugin-react";
+import viteTsConfigPaths from "vite-tsconfig-paths";
+import tailwindcss from "@tailwindcss/vite";
+import { nitro } from "nitro/vite";
+
+const config = defineConfig(({ mode }) => ({
+  server: { port: 3000 },
+  build: {
+    minify: "terser",
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          tanstack: [
+            "@tanstack/react-query",
+            "@tanstack/react-router",
+            "@tanstack/react-start",
+          ],
+          convex: ["convex", "@convex-dev/react-query"],
+          clerk: ["@clerk/clerk-react", "@clerk/themes"],
+        },
+      },
+    },
+  },
+  plugins: [
+    nitro({ compressPublicAssets: true }),
+    viteTsConfigPaths({ projects: ["./tsconfig.json"] }),
+    tailwindcss(),
+    tanstackStart({
+      prerender: { enabled: true },
+      spa: { enabled: true },
+    }),
+    viteReact({
+      babel: {
+        plugins: [["babel-plugin-react-compiler", {}]],
+      },
+    }),
+  ],
+}));
+
+export default config;
+```
+
+```json package.json
+{
+  "scripts": {
+    "dev:vite": "vite dev --port 3000 --host",
+    "dev:convex": "convex dev",
+    "dev": "npm-run-all --parallel dev:vite dev:convex",
+    "build": "tsc --noEmit && vite build",
+    "format": "biome format --write",
+    "lint": "biome lint --max-diagnostics 20",
+    "check": "biome check && tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-start": "^1.132.0",
+    "@tanstack/react-router": "^1.132.0",
+    "@tanstack/react-query": "^5.66.5",
+    "convex": "^1.32.0",
+    "react": "^19.0.0",
+    "zustand": "^5.0.8",
+    "tailwindcss": "^4.0.6"
+  }
+}
+```
+</CodeGroup>
+
+## Development Workflow
+
+The project uses parallel development servers:
+
+1. **Vite dev server** (port 3000) - Hot module replacement for frontend
+2. **Convex dev** - Real-time backend syncing
+
+Both run simultaneously with `npm run dev`.
+
+## Type Safety
+
+The entire stack is type-safe:
+
+- **Router types** - Auto-generated from file structure (`routeTree.gen.ts`)
+- **Convex types** - Generated from schema definitions
+- **API types** - TMDB response types in `types.d.ts`
+- **Component props** - Full TypeScript validation
+
+## Performance Features
+
+- **SSR & Prerendering** - Fast initial page loads
+- **Code splitting** - Optimized bundle sizes
+- **React Compiler** - Automatic memoization without useMemo/useCallback
+- **Optimistic updates** - Instant UI feedback via Convex
+- **Image optimization** - Progressive loading with `@unpic/react`
+- **Route-based prefetching** - Viewport-based preloading

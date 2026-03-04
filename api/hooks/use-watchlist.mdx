@@ -1,0 +1,233 @@
+---
+title: useWatchlist
+description: Core hook for accessing and managing user watchlist state, supporting both authenticated and guest users
+---
+
+The `useWatchlist` hook provides access to the user's watchlist with automatic synchronization between local storage (for guest users) and Convex backend (for authenticated users).
+
+## Overview
+
+This hook is the primary interface for retrieving watchlist data. It automatically handles:
+- User authentication state detection
+- Data source switching between local and remote storage
+- Real-time updates via Convex subscriptions
+- Optimistic UI updates for immediate feedback
+
+## Basic Usage
+
+```tsx
+import { useWatchlist } from '@/hooks/usewatchlist';
+
+function WatchlistPage() {
+  const { watchlist, loading } = useWatchlist();
+
+  if (loading) return <div>Loading...</div>;
+
+  return (
+    <div>
+      <h1>My Watchlist ({watchlist.length})</h1>
+      {watchlist.map((item) => (
+        <div key={item.external_id}>
+          <h2>{item.title}</h2>
+          <p>Type: {item.type}</p>
+          <p>Progress: {item.progress}%</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+## Return Values
+
+<ResponseField name="watchlist" type="WatchlistItem[]">
+  Array of watchlist items, sorted by most recently updated first. Only includes items where `inWatchlist` is `true`.
+  
+  <Expandable title="WatchlistItem properties">
+    <ResponseField name="title" type="string">
+      Media title
+    </ResponseField>
+    <ResponseField name="type" type="'movie' | 'tv'">
+      Media type
+    </ResponseField>
+    <ResponseField name="external_id" type="string">
+      TMDB ID as string
+    </ResponseField>
+    <ResponseField name="image" type="string">
+      Poster image URL
+    </ResponseField>
+    <ResponseField name="rating" type="number">
+      TMDB rating score
+    </ResponseField>
+    <ResponseField name="release_date" type="string">
+      Release date string
+    </ResponseField>
+    <ResponseField name="overview" type="string | undefined">
+      Media description/synopsis
+    </ResponseField>
+    <ResponseField name="updated_at" type="number">
+      Last update timestamp
+    </ResponseField>
+    <ResponseField name="created_at" type="number">
+      Creation timestamp
+    </ResponseField>
+    <ResponseField name="inWatchlist" type="boolean">
+      Whether item is in watchlist (always true for items returned by useWatchlist)
+    </ResponseField>
+    <ResponseField name="progressStatus" type="ProgressStatus | null">
+      Current viewing status: `'want-to-watch'`, `'watching'`, `'finished'`, or `'dropped'`
+    </ResponseField>
+    <ResponseField name="reaction" type="ReactionStatus | null">
+      User reaction: `'loved'`, `'liked'`, `'mixed'`, or `'not-for-me'`
+    </ResponseField>
+    <ResponseField name="progress" type="number | undefined">
+      Watch progress percentage (0-100)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="loading" type="boolean">
+  Loading state indicator. True when:
+  - User authentication state is not yet loaded
+  - Authenticated user's data is being fetched from Convex
+</ResponseField>
+
+## Related Hooks
+
+### useWatchlistItem
+
+Check if a specific item is in the watchlist:
+
+```tsx
+import { useWatchlistItem } from '@/hooks/usewatchlist';
+
+function MediaCard({ id, mediaType }) {
+  const { isOnWatchList } = useWatchlistItem(id, mediaType);
+  
+  return (
+    <div>
+      {isOnWatchList ? '✓ In Watchlist' : 'Add to Watchlist'}
+    </div>
+  );
+}
+```
+
+<ResponseField name="isOnWatchList" type="boolean">
+  Whether the specified media item is currently in the watchlist
+</ResponseField>
+
+### useWatchlistCount
+
+Get the total number of items in the watchlist:
+
+```tsx
+import { useWatchlistCount } from '@/hooks/usewatchlist';
+
+function WatchlistBadge() {
+  const count = useWatchlistCount();
+  return <span>Watchlist ({count})</span>;
+}
+```
+
+### useMediaState
+
+Get full tracking state for a specific media item:
+
+```tsx
+import { useMediaState } from '@/hooks/usewatchlist';
+
+function MediaDetails({ id, mediaType }) {
+  const mediaState = useMediaState(id, mediaType);
+  
+  if (!mediaState) return <div>Not tracked</div>;
+  
+  return (
+    <div>
+      <p>Status: {mediaState.progressStatus}</p>
+      <p>Progress: {mediaState.progress}%</p>
+      <p>Reaction: {mediaState.reaction}</p>
+    </div>
+  );
+}
+```
+
+<ResponseField name="mediaState" type="WatchlistItem | null">
+  Complete state for the media item, or null if not found
+</ResponseField>
+
+### useToggleWatchlistItem
+
+Add or remove items from the watchlist:
+
+```tsx
+import { useToggleWatchlistItem } from '@/hooks/usewatchlist';
+
+function AddToWatchlistButton({ movie }) {
+  const toggleWatchlist = useToggleWatchlistItem();
+  
+  const handleClick = async () => {
+    await toggleWatchlist({
+      title: movie.title,
+      rating: movie.vote_average,
+      image: movie.poster_path,
+      id: String(movie.id),
+      media_type: 'movie',
+      release_date: movie.release_date,
+      overview: movie.overview,
+    });
+  };
+  
+  return <button onClick={handleClick}>Toggle Watchlist</button>;
+}
+```
+
+## Real-World Example
+
+```tsx
+import { useWatchlist, useMediaState } from '@/hooks/usewatchlist';
+
+function WatchlistWithStatus() {
+  const { watchlist, loading } = useWatchlist();
+
+  if (loading) return <LoadingSpinner />;
+
+  const byStatus = {
+    'want-to-watch': watchlist.filter(i => i.progressStatus === 'want-to-watch'),
+    watching: watchlist.filter(i => i.progressStatus === 'watching'),
+    finished: watchlist.filter(i => i.progressStatus === 'finished'),
+  };
+
+  return (
+    <div>
+      <section>
+        <h2>Plan to Watch ({byStatus['want-to-watch'].length})</h2>
+        <MediaGrid items={byStatus['want-to-watch']} />
+      </section>
+      
+      <section>
+        <h2>Currently Watching ({byStatus.watching.length})</h2>
+        <MediaGrid items={byStatus.watching} />
+      </section>
+      
+      <section>
+        <h2>Completed ({byStatus.finished.length})</h2>
+        <MediaGrid items={byStatus.finished} />
+      </section>
+    </div>
+  );
+}
+```
+
+## Implementation Notes
+
+- **Automatic Sync**: The hook automatically switches between local storage and Convex based on authentication state
+- **Sorted Results**: Items are always sorted by `updated_at` in descending order (most recent first)
+- **Real-time Updates**: Authenticated users receive real-time updates via Convex subscriptions
+- **Type Safety**: Full TypeScript support with `WatchlistItem` type
+- **Memory Storage Fallback**: Uses in-memory storage in SSR/non-browser environments
+
+## Source
+
+**Location**: `~/workspace/source/src/hooks/usewatchlist.ts:350-376`
+
+The hook uses a Zustand store with localStorage persistence for guest users and Convex queries for authenticated users.

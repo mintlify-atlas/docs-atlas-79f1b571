@@ -1,0 +1,332 @@
+---
+title: Components
+description: UI component library and architecture
+---
+
+## Component Library
+
+Film Fanatic uses **shadcn/ui** components built on **Radix UI** primitives, providing accessible, customizable components.
+
+## UI Foundation
+
+### Base Components
+
+All UI components live in `src/components/ui/` and follow shadcn/ui patterns:
+
+- **Button** - Variant-based button component with size options
+- **Dialog** - Accessible modal dialogs
+- **Tabs** - Tab navigation for content sections
+- **Badge** - Status and label indicators
+- **Skeleton** - Loading placeholders
+- **Image** - Optimized image component with lazy loading
+
+### Button Component
+
+Built with `class-variance-authority` for type-safe variants:
+
+<CodeGroup>
+```tsx src/components/ui/button.tsx
+import { Slot } from "@radix-ui/react-slot";
+import { cva, type VariantProps } from "class-variance-authority";
+import { cn } from "@/lib/utils";
+
+const buttonVariants = cva(
+  "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-[calc(var(--radius-md)+3px)] font-medium text-sm outline-none transition-all focus-visible:border-ring focus-visible:ring-[2px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        destructive: "bg-destructive text-white hover:bg-destructive/90",
+        outline: "border bg-background hover:bg-accent hover:text-accent-foreground",
+        secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost: "hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
+      },
+      size: {
+        default: "h-9 px-4 py-2",
+        sm: "h-8 gap-1.5 rounded-md px-3",
+        lg: "h-10 rounded-md px-6",
+        icon: "size-9",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+      size: "default",
+    },
+  },
+);
+
+function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  ...props
+}: React.ComponentProps<"button"> &
+  VariantProps<typeof buttonVariants> & {
+    asChild?: boolean;
+  }) {
+  const Comp = asChild ? Slot : "button";
+  return (
+    <Comp
+      className={cn(buttonVariants({ variant, size, className }))}
+      {...props}
+    />
+  );
+}
+
+export { Button, buttonVariants };
+```
+
+```tsx Usage Example
+import { Button } from "@/components/ui/button";
+
+<Button variant="default">Default Button</Button>
+<Button variant="outline" size="sm">Small Outline</Button>
+<Button variant="ghost" size="icon">
+  <Icon />
+</Button>
+```
+</CodeGroup>
+
+### Dialog Component
+
+Accessible modals built with Radix UI Dialog primitive:
+
+<CodeGroup>
+```tsx src/components/ui/dialog.tsx
+import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { XIcon } from "@/components/ui/icons";
+import { cn } from "@/lib/utils";
+
+function DialogContent({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Content>) {
+  return (
+    <DialogPortal>
+      <DialogOverlay />
+      <DialogPrimitive.Content
+        className={cn(
+          "bg-black fixed top-[50%] left-[50%] z-50 grid w-full max-w-[calc(100%-2rem)] translate-x-[-50%] translate-y-[-50%] gap-4 border duration-200 rounded-xl",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+        <DialogPrimitive.Close className="absolute top-4 right-4 z-20 cursor-pointer active:scale-90 duration-300 transition-all p-2.5 bg-background dark:bg-foreground rounded-full pressable">
+          <XIcon className="size-5.5" />
+          <span className="sr-only">Close</span>
+        </DialogPrimitive.Close>
+      </DialogPrimitive.Content>
+    </DialogPortal>
+  );
+}
+
+export { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle };
+```
+
+```tsx Usage Example
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+
+<Dialog>
+  <DialogTrigger asChild>
+    <Button>Open Dialog</Button>
+  </DialogTrigger>
+  <DialogContent>
+    <DialogHeader>
+      <DialogTitle>Dialog Title</DialogTitle>
+    </DialogHeader>
+    <p>Dialog content goes here</p>
+  </DialogContent>
+</Dialog>
+```
+</CodeGroup>
+
+## Feature Components
+
+### Media Card
+
+Reusable card component for movies, TV shows, and people:
+
+<CodeGroup>
+```tsx src/components/media-card.tsx
+import { Link } from "@tanstack/react-router";
+import { AutoScrollTitle } from "@/components/ui/auto-scroll-title";
+import { Badge } from "@/components/ui/badge";
+import { Star } from "@/components/ui/icons";
+import { Image } from "@/components/ui/image";
+import { WatchlistButton } from "@/components/watchlist-button";
+import { IMAGE_PREFIX } from "@/constants";
+import { formatMediaTitle } from "@/lib/utils";
+
+const HorizontalCard = (props: MediaCardSpecificProps) => {
+  const { title, rating, image, id, media_type, release_date } = props;
+  const formattedTitle = formatMediaTitle.encode(title);
+  const imageUrl = `${IMAGE_PREFIX.SD_POSTER}${image}`;
+  const year = release_date ? new Date(release_date).getFullYear() : "";
+
+  return (
+    <div className="group relative w-40 md:w-44 lg:w-48">
+      <Link
+        to={`/${media_type}/${id}/${formattedTitle}`}
+        className="block h-full w-full outline-none ring-offset-background transition-all focus-visible:ring-2"
+      >
+        <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-muted shadow-md transition-all duration-500 group-hover:shadow-xl">
+          <Image
+            alt={title}
+            src={imageUrl}
+            className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
+            width={300}
+            height={450}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/0 to-black/0" />
+
+          {rating > 0 && (
+            <Badge className="absolute bottom-2 left-2 rounded-md bg-white/30 px-2 py-0.5 backdrop-blur-md flex items-center gap-1">
+              <Star className="size-3 fill-yellow-400 text-yellow-400" />
+              <span className="text-xs font-medium text-white">
+                {rating.toFixed(1)}
+              </span>
+            </Badge>
+          )}
+
+          <Badge className="absolute bottom-2 right-2 rounded-md bg-white/30 backdrop-blur-md">
+            {media_type === "movie" ? "Movie" : "TV"}
+          </Badge>
+        </div>
+
+        <div className="mt-3 flex flex-col gap-0.5 overflow-hidden">
+          <AutoScrollTitle
+            text={title}
+            className="text-sm font-bold leading-tight tracking-tight text-foreground transition-colors group-hover:text-primary"
+          />
+          <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground/80">
+            <span>{year}</span>
+          </div>
+        </div>
+      </Link>
+
+      <div className="absolute right-2 top-2 z-10 transition-transform duration-300 hover:scale-105">
+        <WatchlistButton
+          id={id}
+          media_type={media_type}
+          rating={rating}
+          release_date={release_date ?? ""}
+          title={title}
+        />
+      </div>
+    </div>
+  );
+};
+
+export { MediaCard, MediaCardSkeleton };
+```
+
+```tsx Usage in Homepage
+import { MediaCard } from "@/components/media-card";
+
+<MediaCard
+  card_type="horizontal"
+  id={movie.id}
+  title={movie.title}
+  rating={movie.vote_average}
+  image={movie.poster_path}
+  poster_path={movie.poster_path}
+  media_type="movie"
+  release_date={movie.release_date}
+  is_on_homepage={true}
+/>
+```
+</CodeGroup>
+
+### Watchlist Button
+
+Interactive button with optimistic updates:
+
+<CodeGroup>
+```tsx src/components/watchlist-button.tsx
+import { useCallback } from "react";
+import { Button } from "@/components/ui/button";
+import { BookMarkFilledIcon, BookMarkIcon, TrashBin } from "@/components/ui/icons";
+import { useToggleWatchlistItem, useWatchlistItem } from "@/hooks/usewatchlist";
+
+const WatchlistButton = (props: WatchlistButtonProps) => {
+  const { title, rating, image, media_type, release_date, is_on_homepage, is_on_watchlist_page } = props;
+  const itemId = String(props.id);
+  const toggle = useToggleWatchlistItem();
+  const { isOnWatchList } = useWatchlistItem(itemId, media_type);
+
+  const handleWatchList = useCallback(async () => {
+    try {
+      await toggle({
+        title,
+        rating,
+        image,
+        id: itemId,
+        media_type,
+        release_date: release_date ?? "",
+      });
+    } catch (error) {
+      console.error("Error toggling watchlist:", error);
+    }
+  }, [title, rating, image, itemId, media_type, release_date, toggle]);
+
+  const showTrash = isOnWatchList && is_on_watchlist_page;
+  const showFilled = isOnWatchList && !is_on_watchlist_page;
+
+  return (
+    <Button
+      variant={is_on_homepage ? "secondary" : "light"}
+      aria-label={isOnWatchList ? "Remove from watchlist" : "Add to watchlist"}
+      size="icon"
+      onClick={handleWatchList}
+      className="pressable"
+    >
+      {showTrash ? (
+        <TrashBin className="size-5" />
+      ) : showFilled ? (
+        <BookMarkFilledIcon className="size-5" />
+      ) : (
+        <BookMarkIcon className="size-5" />
+      )}
+    </Button>
+  );
+};
+
+export { WatchlistButton };
+```
+</CodeGroup>
+
+## Styling Utilities
+
+The `cn()` utility merges Tailwind classes safely:
+
+```tsx src/lib/utils.ts
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+```
+
+Usage:
+```tsx
+<div className={cn("base-class", isActive && "active-class", className)} />
+```
+
+## Component Patterns
+
+1. **Composition** - Use Radix Slot for "asChild" pattern
+2. **Variants** - class-variance-authority for type-safe variants
+3. **Accessibility** - Radix UI primitives handle ARIA attributes
+4. **Responsive** - Mobile-first Tailwind classes
+5. **Performance** - React.memo only where needed (React Compiler handles most cases)

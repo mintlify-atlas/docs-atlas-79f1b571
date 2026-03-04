@@ -1,0 +1,365 @@
+---
+title: 'Episode Progress Functions'
+description: 'Convex functions for tracking TV show episode watch progress'
+---
+
+Episode progress functions track which episodes of TV shows a user has watched, supporting both individual episode tracking and batch operations for seasons.
+
+## markEpisodeWatched
+
+Marks a single episode as watched or unwatched.
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the TV show
+</ParamField>
+
+<ParamField path="season" type="number" required>
+  Season number
+</ParamField>
+
+<ParamField path="episode" type="number" required>
+  Episode number within the season
+</ParamField>
+
+<ParamField path="isWatched" type="boolean" required>
+  Whether the episode is watched (true) or unwatched (false)
+</ParamField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+
+const markEpisode = useMutation(api.watchlist.markEpisodeWatched);
+
+// Mark episode as watched
+await markEpisode({
+  tmdbId: 1396, // Breaking Bad
+  season: 1,
+  episode: 1,
+  isWatched: true
+});
+
+// Unmark episode
+await markEpisode({
+  tmdbId: 1396,
+  season: 1,
+  episode: 1,
+  isWatched: false
+});
+```
+
+### Behavior
+
+- Creates a new episode progress record if it doesn't exist (when marking as watched)
+- Updates existing record if the watched state changes
+- Does not create a record when unmarking if no record exists
+- Requires user authentication
+
+---
+
+## markSeasonEpisodesWatched
+
+Batch marks multiple episodes in a season as watched or unwatched.
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the TV show
+</ParamField>
+
+<ParamField path="season" type="number" required>
+  Season number
+</ParamField>
+
+<ParamField path="episodes" type="number[]" required>
+  Array of episode numbers to mark
+</ParamField>
+
+<ParamField path="isWatched" type="boolean" required>
+  Whether episodes are watched (true) or unwatched (false)
+</ParamField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+
+const markSeasonEpisodes = useMutation(api.watchlist.markSeasonEpisodesWatched);
+
+// Mark entire season as watched
+await markSeasonEpisodes({
+  tmdbId: 1396,
+  season: 1,
+  episodes: [1, 2, 3, 4, 5, 6, 7],
+  isWatched: true
+});
+
+// Unmark specific episodes
+await markSeasonEpisodes({
+  tmdbId: 1396,
+  season: 1,
+  episodes: [1, 2, 3],
+  isWatched: false
+});
+```
+
+### Behavior
+
+- Processes each episode in the array
+- Only updates records where the watched state actually changes
+- Does not create records when unmarking if they don't exist
+- Optimized for batch operations (e.g., marking entire seasons)
+
+---
+
+## markShowEpisodesAndStatus
+
+Batch marks episodes across multiple seasons and updates the show's progress status in a single transaction. This is the most efficient way to mark multiple seasons.
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the TV show
+</ParamField>
+
+<ParamField path="mediaType" type="string" required>
+  Type of media (should be "tv")
+</ParamField>
+
+<ParamField path="seasons" type="array" required>
+  Array of season objects with episodes to mark
+  
+  <ParamField path="season" type="number" required>
+    Season number
+  </ParamField>
+  
+  <ParamField path="episodes" type="number[]" required>
+    Array of episode numbers in this season
+  </ParamField>
+</ParamField>
+
+<ParamField path="isWatched" type="boolean" required>
+  Whether episodes are watched (true) or unwatched (false)
+</ParamField>
+
+<ParamField path="progressStatus" type="string" optional>
+  Progress status to set on the show: "want-to-watch", "watching", or "finished"
+</ParamField>
+
+<ParamField path="progress" type="number" optional>
+  Overall show progress percentage (0-100)
+</ParamField>
+
+<ParamField path="title" type="string" optional>
+  Show title
+</ParamField>
+
+<ParamField path="image" type="string" optional>
+  URL to show poster image
+</ParamField>
+
+<ParamField path="rating" type="number" optional>
+  Show rating
+</ParamField>
+
+<ParamField path="release_date" type="string" optional>
+  Show release date
+</ParamField>
+
+<ParamField path="overview" type="string" optional>
+  Show description/overview
+</ParamField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+
+const markShowEpisodes = useMutation(api.watchlist.markShowEpisodesAndStatus);
+
+// Mark multiple seasons as watched and set status to finished
+await markShowEpisodes({
+  tmdbId: 1396,
+  mediaType: "tv",
+  seasons: [
+    { season: 1, episodes: [1, 2, 3, 4, 5, 6, 7] },
+    { season: 2, episodes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] },
+    { season: 3, episodes: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] }
+  ],
+  isWatched: true,
+  progressStatus: "finished",
+  progress: 100
+});
+```
+
+### Behavior
+
+- Updates the show's `watch_items` record with progress status and percentage
+- Bulk-fetches all existing episode progress records in one query for efficiency
+- Only writes database changes for episodes whose watched state actually changed
+- Replaces the N+1 pattern of calling `setProgressStatus` + `markSeasonEpisodesWatched` per season
+- Creates new watch item if the show isn't tracked yet
+
+---
+
+## getAllWatchedEpisodes
+
+Retrieves all watched episodes for a specific TV show.
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the TV show
+</ParamField>
+
+<ResponseField name="episodes" type="array">
+  Array of episode progress records
+  
+  <ResponseField name="_id" type="Id<'episode_progress'>">
+    Unique identifier for the episode progress record
+  </ResponseField>
+  
+  <ResponseField name="userId" type="Id<'users'>">
+    ID of the user who watched the episode
+  </ResponseField>
+  
+  <ResponseField name="tmdbId" type="number">
+    TMDB ID of the TV show
+  </ResponseField>
+  
+  <ResponseField name="season" type="number">
+    Season number
+  </ResponseField>
+  
+  <ResponseField name="episode" type="number">
+    Episode number
+  </ResponseField>
+  
+  <ResponseField name="isWatched" type="boolean">
+    Whether the episode is watched
+  </ResponseField>
+  
+  <ResponseField name="updatedAt" type="number">
+    Timestamp of last update
+  </ResponseField>
+</ResponseField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useQuery } from "convex/react";
+
+const watchedEpisodes = useQuery(api.watchlist.getAllWatchedEpisodes, {
+  tmdbId: 1396
+});
+
+// Check if a specific episode is watched
+const isEpisodeWatched = watchedEpisodes?.some(
+  ep => ep.season === 1 && ep.episode === 1 && ep.isWatched
+);
+
+// Count watched episodes
+const watchedCount = watchedEpisodes?.filter(ep => ep.isWatched).length ?? 0;
+```
+
+### Behavior
+
+- Returns empty array if user is not authenticated
+- Returns all episode progress records for the show (both watched and unwatched)
+- Useful for displaying watch progress and determining which episodes have been seen
+
+---
+
+## getAllEpisodeProgress
+
+Retrieves all episode progress records for the current user across all TV shows.
+
+<ResponseField name="episodes" type="array">
+  Array of all episode progress records for the user
+  
+  <ResponseField name="_id" type="Id<'episode_progress'>">
+    Unique identifier for the episode progress record
+  </ResponseField>
+  
+  <ResponseField name="userId" type="Id<'users'>">
+    ID of the user
+  </ResponseField>
+  
+  <ResponseField name="tmdbId" type="number">
+    TMDB ID of the TV show
+  </ResponseField>
+  
+  <ResponseField name="season" type="number">
+    Season number
+  </ResponseField>
+  
+  <ResponseField name="episode" type="number">
+    Episode number
+  </ResponseField>
+  
+  <ResponseField name="isWatched" type="boolean">
+    Whether the episode is watched
+  </ResponseField>
+  
+  <ResponseField name="updatedAt" type="number">
+    Timestamp of last update
+  </ResponseField>
+</ResponseField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useQuery } from "convex/react";
+
+const allProgress = useQuery(api.watchlist.getAllEpisodeProgress);
+
+// Count total watched episodes across all shows
+const totalWatched = allProgress?.filter(ep => ep.isWatched).length ?? 0;
+
+// Group by show
+const byShow = allProgress?.reduce((acc, ep) => {
+  if (!acc[ep.tmdbId]) acc[ep.tmdbId] = [];
+  acc[ep.tmdbId].push(ep);
+  return acc;
+}, {} as Record<number, typeof allProgress>);
+```
+
+### Behavior
+
+- Returns empty array if user is not authenticated
+- Returns all episode progress across all TV shows
+- Useful for syncing progress data or displaying global statistics
+
+---
+
+## syncEpisodeProgressItem
+
+Syncs a single episode's watch state. Similar to `markEpisodeWatched` but designed for sync operations.
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the TV show
+</ParamField>
+
+<ParamField path="season" type="number" required>
+  Season number
+</ParamField>
+
+<ParamField path="episode" type="number" required>
+  Episode number within the season
+</ParamField>
+
+<ParamField path="isWatched" type="boolean" required>
+  Whether the episode is watched (true) or unwatched (false)
+</ParamField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+
+const syncEpisode = useMutation(api.watchlist.syncEpisodeProgressItem);
+
+// Sync episode state
+await syncEpisode({
+  tmdbId: 1396,
+  season: 1,
+  episode: 1,
+  isWatched: true
+});
+```
+
+### Behavior
+
+- Identical to `markEpisodeWatched` in functionality
+- Creates or updates episode progress record
+- Only updates if watched state changes
+- Does not create record when unmarking if none exists

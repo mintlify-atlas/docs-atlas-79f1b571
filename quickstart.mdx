@@ -1,80 +1,241 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get Film Fanatic running locally in under 5 minutes
 ---
 
-## Get started in three steps
+# Quick Start Guide
 
-Get your documentation site running locally and make your first customization.
+This guide will get you from zero to a fully functional Film Fanatic instance in under 5 minutes.
 
-### Step 1: Set up your local environment
+## Prerequisites Check
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+Before you begin, ensure you have:
+
+- **Node.js 20+** installed ([Download](https://nodejs.org/))
+- **pnpm** package manager ([Install](https://pnpm.io/installation))
+- A **TMDB API key** ([Get free access](https://www.themoviedb.org/settings/api))
+
+<Tip>
+You can verify your Node.js version with `node --version`. Film Fanatic requires Node.js 20 or higher.
+</Tip>
+
+## Installation Steps
+
+<Steps>
+  <Step title="Clone the Repository">
+    Clone Film Fanatic from GitHub to your local machine:
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    ```bash
+    git clone https://github.com/Swastikdan/Film-Fanatic.git
+    cd film-fanatic
+    ```
+  </Step>
+
+  <Step title="Install Dependencies">
+    Install all required packages using pnpm:
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    ```bash
+    pnpm install
+    ```
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    This will install all dependencies defined in `package.json`, including React 19, TanStack Start, Convex, Clerk, and more.
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Configure Environment Variables">
+    Create a `.env.local` file in the project root with the following configuration:
+    
+    ```bash .env.local
+    # TMDB API Configuration
+    VITE_TMDB_ACCESS_TOKEN=your_tmdb_token_here
+    VITE_TMDB_API_URL=https://api.themoviedb.org/3
+    
+    # Clerk Authentication (Optional for development)
+    VITE_CLERK_PUBLISHABLE_KEY=your_clerk_key_here
+    CLERK_SECRET_KEY=your_clerk_secret_here
+    
+    # Convex Backend (Optional for development)
+    VITE_CONVEX_URL=your_convex_url_here
+    CONVEX_DEPLOY_KEY=your_deploy_key_here
+    ```
+    
+    <Note>
+    For a quick start, you only need the TMDB credentials. Clerk and Convex can be configured later if you want authentication and cloud sync features.
+    </Note>
+  </Step>
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+  <Step title="Start Development Server">
+    Launch the development environment:
+    
+    ```bash
+    pnpm dev
+    ```
+    
+    This command runs both the Vite dev server and Convex backend in parallel using `npm-run-all`. The application will be available at:
+    
+    ```
+    http://localhost:3000
+    ```
+  </Step>
+</Steps>
 
-### Step 3: Go live
+## Verify Your Setup
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+Once the development server starts, you should see:
 
-## Next steps
+<CodeGroup>
+```bash Terminal Output
+> film-fanatic@1.0.0 dev
+> npm-run-all --parallel dev:vite dev:convex
 
-Now that you have your docs running, explore these key features:
+> dev:vite
+> vite dev --port 3000 --host
 
-<CardGroup cols={2}>
+  VITE v7.1.7  ready in 892 ms
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+  ➜  Local:   http://localhost:3000/
+  ➜  Network: http://192.168.1.100:3000/
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+> dev:convex
+> convex dev
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+  ✓ Convex functions ready
+```
+</CodeGroup>
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+If you haven't set up Convex yet, you'll see a warning about the missing Convex URL. The app will still run in local-only mode using localStorage.
 </Note>
+
+## Test the Application
+
+Verify everything works by:
+
+1. **Opening the browser** at `http://localhost:3000`
+2. **Testing search** - Try searching for a movie like "Inception"
+3. **Viewing details** - Click on any movie/show to see the detail page
+4. **Adding to watchlist** - Add items to your watchlist (stored locally without auth)
+
+## What's Running?
+
+The `pnpm dev` command starts multiple processes:
+
+| Process | Port | Purpose |
+| --- | --- | --- |
+| **Vite Dev Server** | 3000 | Frontend development server with HMR |
+| **Convex Dev** | N/A | Backend functions with hot reload |
+
+<Tip>
+The dev server includes React DevTools, TanStack Router DevTools, and TanStack Query DevTools for debugging.
+</Tip>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Port 3000 already in use">
+    If port 3000 is occupied, you can change it in `package.json`:
+    
+    ```json
+    "dev:vite": "vite dev --port 3001 --host"
+    ```
+    
+    Or kill the process using port 3000:
+    
+    ```bash
+    # On macOS/Linux
+    lsof -ti:3000 | xargs kill -9
+    
+    # On Windows
+    netstat -ano | findstr :3000
+    taskkill /PID <PID> /F
+    ```
+  </Accordion>
+
+  <Accordion title="pnpm not found">
+    Install pnpm globally:
+    
+    ```bash
+    npm install -g pnpm
+    ```
+    
+    Or use npx:
+    
+    ```bash
+    npx pnpm install
+    npx pnpm dev
+    ```
+  </Accordion>
+
+  <Accordion title="TMDB API errors">
+    Verify your TMDB access token is correct:
+    
+    1. Go to [TMDB Settings](https://www.themoviedb.org/settings/api)
+    2. Copy the "API Read Access Token" (not the API Key)
+    3. Ensure it's set as `VITE_TMDB_ACCESS_TOKEN` in `.env.local`
+    4. Restart the dev server after updating environment variables
+  </Accordion>
+
+  <Accordion title="Module not found errors">
+    Clear the dependency cache and reinstall:
+    
+    ```bash
+    rm -rf node_modules pnpm-lock.yaml
+    pnpm install
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that you have Film Fanatic running locally, you can:
+
+<CardGroup cols={2}>
+  <Card title="Full Installation Guide" icon="book" href="/installation">
+    Set up Clerk authentication and Convex cloud sync
+  </Card>
+  
+  <Card title="Configuration" icon="gear" href="/configuration/environment-variables">
+    Customize your Film Fanatic instance
+  </Card>
+  
+  <Card title="Development" icon="code" href="/development/architecture">
+    Learn about the codebase and contribute
+  </Card>
+  
+  <Card title="API Reference" icon="rocket" href="/api/hooks/use-watchlist">
+    Explore hooks and backend functions
+  </Card>
+</CardGroup>
+
+## Development Commands
+
+Here are the essential commands you'll use during development:
+
+```bash
+# Start development server (frontend + backend)
+pnpm dev
+
+# Start only frontend
+pnpm dev:vite
+
+# Start only Convex backend
+pnpm dev:convex
+
+# Type checking
+pnpm check
+
+# Linting
+pnpm lint
+
+# Format code
+pnpm format
+
+# Build for production
+pnpm build
+
+# Preview production build
+pnpm vite:serve
+```
+
+<Warning>
+Always run `pnpm check` before committing to ensure TypeScript types are valid and Biome linting passes.
+</Warning>

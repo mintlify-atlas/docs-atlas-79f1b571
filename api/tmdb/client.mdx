@@ -1,0 +1,199 @@
+---
+title: 'TMDB Client'
+description: 'Authenticated TMDB API client with React cache integration'
+---
+
+## Overview
+
+The `tmdb()` function is a cached, authenticated HTTP client for interacting with The Movie Database (TMDB) API. It wraps the TMDB API with automatic authentication, error handling, and React cache optimization.
+
+## Configuration
+
+The client requires two environment variables:
+
+- `VITE_PUBLIC_TMDB_ACCESS_TOKEN` - Your TMDB API bearer token
+- `VITE_PUBLIC_TMDB_API_URL` - TMDB API base URL (typically `https://api.themoviedb.org/3`)
+
+If either variable is missing, the module will throw an error on import.
+
+## Function Signature
+
+```typescript
+const tmdb: <T>(endpoint: string, options?: FetchOptions) => Promise<TmdbApiResult<T>>
+```
+
+### Parameters
+
+<ParamField path="endpoint" type="string" required>
+  The API endpoint path. Can start with or without a leading slash (e.g., `/movie/popular` or `movie/popular`).
+</ParamField>
+
+<ParamField path="options" type="FetchOptions">
+  Optional configuration for the request.
+  
+  <ParamField path="revalidate" type="number">
+    Cache revalidation time in milliseconds. When set, uses `cache: "default"`, otherwise uses `cache: "no-store"`.
+  </ParamField>
+</ParamField>
+
+### Return Type
+
+```typescript
+interface TmdbApiResult<T> {
+  data?: T;
+  error?: string;
+}
+```
+
+The function returns a promise that resolves to either:
+- `{ data: T }` - Successful response with typed data
+- `{ error: string }` - Error response with descriptive message
+
+## Caching Behavior
+
+The `tmdb()` function is wrapped with React's `cache()` function, providing automatic request deduplication during server-side rendering:
+
+- **Same endpoint, same render** - Only one network request is made
+- **Different renders** - Fresh requests are made
+- **Revalidate option** - Controls HTTP cache behavior (not React cache)
+
+```typescript
+// This will only make ONE network request even if called multiple times
+const movie1 = await tmdb<Movie>('/movie/550');
+const movie2 = await tmdb<Movie>('/movie/550');
+```
+
+## Error Handling
+
+The client handles two types of errors:
+
+### HTTP Errors
+
+When the TMDB API returns a non-OK status:
+
+```typescript
+{
+  error: "TMDB API error: 404 Not Found"
+}
+```
+
+### Network Errors
+
+When the fetch request fails:
+
+```typescript
+{
+  error: "Network error: Failed to fetch"
+}
+```
+
+Both error types are logged to the console with the endpoint information.
+
+## Usage Examples
+
+### Basic Request
+
+```typescript
+import { tmdb } from '@/lib/tmdb';
+import type { Movie } from '@/types';
+
+const response = await tmdb<Movie>('/movie/550');
+
+if (response.error) {
+  console.error('Failed to fetch movie:', response.error);
+  return;
+}
+
+const movie = response.data;
+console.log(movie.title); // "Fight Club"
+```
+
+### With Caching
+
+```typescript
+import { tmdb } from '@/lib/tmdb';
+import type { BasicMovie } from '@/types';
+
+// Cache for 48 hours (172800000 milliseconds)
+const response = await tmdb<BasicMovie>(
+  '/movie/550',
+  { revalidate: 1000 * 60 * 60 * 48 }
+);
+
+if (response.data) {
+  console.log(response.data.title);
+}
+```
+
+### Error Handling Pattern
+
+```typescript
+import { tmdb } from '@/lib/tmdb';
+import { validateResponse } from '@/lib/utils';
+import type { SearchResults } from '@/types';
+
+try {
+  const response = await tmdb<SearchResults>('/search/multi?query=inception');
+  const data = validateResponse(response); // Throws if error
+  
+  return data.results;
+} catch (error) {
+  console.error('Search failed:', error);
+  throw error;
+}
+```
+
+### Multiple Concurrent Requests
+
+```typescript
+import { tmdb } from '@/lib/tmdb';
+import type { Movie, Credits } from '@/types';
+
+// React cache ensures deduplication
+const [movieRes, creditsRes] = await Promise.all([
+  tmdb<Movie>('/movie/550'),
+  tmdb<Credits>('/movie/550/credits')
+]);
+
+if (movieRes.data && creditsRes.data) {
+  console.log(movieRes.data.title);
+  console.log(creditsRes.data.cast);
+}
+```
+
+## Implementation Details
+
+### Authentication
+
+All requests include the bearer token in the Authorization header:
+
+```typescript
+headers: {
+  accept: "application/json",
+  Authorization: `Bearer ${ACCESS_TOKEN}`
+}
+```
+
+### Request Method
+
+All requests use the `GET` method. The TMDB API primarily uses GET endpoints for data retrieval.
+
+### Endpoint Normalization
+
+Endpoints are automatically normalized to include a leading slash:
+
+```typescript
+tmdb('/movie/popular')  // ✓ Works
+tmdb('movie/popular')   // ✓ Also works (normalized to /movie/popular)
+```
+
+## Related Functions
+
+The `tmdb()` client is used by all query functions in the library. See:
+
+- [Query Functions](/api/tmdb/queries) - Higher-level functions that use this client
+- Response validation utilities in `/lib/utils.ts`
+
+## Source Code
+
+Location: `src/lib/tmdb.ts:18-61`

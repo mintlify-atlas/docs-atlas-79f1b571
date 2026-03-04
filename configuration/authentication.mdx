@@ -1,0 +1,264 @@
+---
+title: Authentication Setup
+description: Configure Clerk authentication for secure user management
+---
+
+Film Fanatic uses [Clerk](https://clerk.com) for authentication, providing secure sign-in, user profiles, and session management. Users can authenticate while maintaining a local-first experience for guest users.
+
+## How Authentication Works
+
+Film Fanatic implements a hybrid authentication model:
+
+- **Guest Users**: Data is stored in `localStorage` for immediate access without sign-in
+- **Authenticated Users**: Data automatically syncs to Convex backend for cross-device access
+- **Automatic Migration**: When guests sign in, their local data can be synced to the cloud
+
+## Clerk Configuration
+
+### 1. Create a Clerk Application
+
+1. Sign up at [clerk.com](https://clerk.com)
+2. Create a new application
+3. Choose your authentication methods (Email, Google, GitHub, etc.)
+4. Copy your API keys from the dashboard
+
+### 2. Configure Environment Variables
+
+Add these keys to your `.env.local` file:
+
+```env
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+```
+
+See [Environment Variables](/configuration/environment-variables) for detailed setup.
+
+### 3. Set Up Clerk-Convex Integration
+
+Film Fanatic integrates Clerk with Convex for backend authentication. Configure your Clerk issuer URL in the Convex auth config:
+
+```typescript convex/auth.config.ts
+export default {
+  providers: [
+    {
+      domain: process.env.CONVEX_CLERK_ISSUER_URL,
+      applicationID: "convex",
+    },
+  ],
+};
+```
+
+### 4. Configure Convex Environment Variable
+
+In your Convex dashboard, add the Clerk issuer URL:
+
+```bash
+npx convex env set CONVEX_CLERK_ISSUER_URL https://your-clerk-domain.clerk.accounts.dev
+```
+
+You can find your issuer URL in Clerk Dashboard → API Keys → Advanced → JWT Issuer.
+
+## User Synchronization
+
+Film Fanatic automatically syncs authenticated users to the Convex database.
+
+### User Sync Component
+
+The `UserSync` component runs on every page load to ensure user data is up-to-date:
+
+```tsx src/components/user-sync.tsx
+import { useUser } from "@clerk/clerk-react";
+import { useMutation } from "convex/react";
+import { useEffect } from "react";
+import { api } from "../../convex/_generated/api";
+
+export const UserSync = () => {
+  const { user, isLoaded } = useUser();
+  const storeUser = useMutation(api.users.store);
+
+  useEffect(() => {
+    if (isLoaded && user) {
+      storeUser({
+        name: user.fullName ?? user.username ?? "Anonymous",
+        email: user.primaryEmailAddress?.emailAddress,
+        image: user.imageUrl,
+      });
+    }
+  }, [isLoaded, user, storeUser]);
+
+  return null;
+};
+```
+
+### User Store Mutation
+
+The backend handles user creation and updates:
+
+```typescript convex/users.ts
+export const store = mutation({
+  args: {
+    email: v.optional(v.string()),
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      throw new Error("Called storeUser without authentication present");
+    }
+    
+    const userId = identity.subject;
+    const existing = await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", userId))
+      .first();
+
+    if (existing) {
+      // Update existing user
+      await ctx.db.patch(existing._id, {
+        name: args.name,
+        image: args.image,
+        email: args.email,
+      });
+      return existing._id;
+    } else {
+      // Create new user
+      return await ctx.db.insert("users", {
+        tokenIdentifier: userId,
+        name: args.name,
+        image: args.image,
+        email: args.email,
+      });
+    }
+  },
+});
+```
+
+## User Profile Data
+
+Clerk provides rich user profile information that Film Fanatic stores:
+
+| Field | Source | Description |
+|-------|--------|-------------|
+| `tokenIdentifier` | Clerk `user.id` | Unique user identifier |
+| `name` | Clerk `user.fullName` or `user.username` | Display name |
+| `email` | Clerk `user.primaryEmailAddress` | User's email |
+| `image` | Clerk `user.imageUrl` | Profile picture URL |
+
+## Authentication States
+
+### Checking Authentication Status
+
+Use the Convex `getStatus` query to check if a user is authenticated:
+
+```typescript
+export const getStatus = query({
+  args: {},
+  handler: async (ctx) => {
+    const identity = await ctx.auth.getUserIdentity();
+    if (!identity) {
+      return null;
+    }
+    
+    return await ctx.db
+      .query("users")
+      .withIndex("by_token", (q) => q.eq("tokenIdentifier", identity.subject))
+      .first();
+  },
+});
+```
+
+### Protected Mutations
+
+All backend mutations verify authentication before processing:
+
+```typescript
+async function getCurrentUser(ctx: any) {
+  const identity = await ctx.auth.getUserIdentity();
+  if (!identity) return null;
+
+  return ctx.db
+    .query("users")
+    .withIndex("by_token", (q: any) => 
+      q.eq("tokenIdentifier", identity.subject)
+    )
+    .first();
+}
+
+// Usage in mutations
+export const updateProgress = mutation({
+  handler: async (ctx, args) => {
+    const user = await getCurrentUser(ctx);
+    if (!user) throw new Error("Unauthorized");
+    
+    // Process authenticated request
+  },
+});
+```
+
+## Customizing Authentication
+
+### Appearance Customization
+
+You can customize Clerk's sign-in components to match your brand:
+
+```tsx
+import { ClerkProvider } from '@clerk/clerk-react';
+
+<ClerkProvider 
+  publishableKey={import.meta.env.VITE_CLERK_PUBLISHABLE_KEY}
+  appearance={{
+    baseTheme: 'dark',
+    variables: {
+      colorPrimary: '#your-brand-color',
+    },
+  }}
+>
+  {/* Your app */}
+</ClerkProvider>
+```
+
+### Authentication Methods
+
+Configure which sign-in methods are available in your Clerk Dashboard:
+
+- Email/Password
+- Email verification codes
+- Social OAuth (Google, GitHub, etc.)
+- Phone number
+- Web3 wallets
+
+## Security Best Practices
+
+<Warning>
+  Never expose your `CLERK_SECRET_KEY` in client-side code. Only use it in server-side environments.
+</Warning>
+
+- Store secret keys in environment variables
+- Use different Clerk applications for development and production
+- Enable two-factor authentication for admin accounts
+- Regularly rotate API keys
+- Monitor authentication logs in Clerk dashboard
+
+## Troubleshooting
+
+### "Called storeUser without authentication present"
+
+This error occurs when a mutation is called without a valid session:
+
+- Ensure the user is signed in before calling protected mutations
+- Verify Clerk is properly initialized
+- Check that `CONVEX_CLERK_ISSUER_URL` matches your Clerk domain
+
+### User not syncing to database
+
+- Verify the `UserSync` component is rendered in your app root
+- Check that Clerk and Convex credentials are correctly configured
+- Ensure the Convex auth config has the correct issuer URL
+
+### Session expires too quickly
+
+Configure session lifetime in Clerk Dashboard → Sessions:
+
+- Adjust "Inactive session lifetime"
+- Enable "Multi-session handling" for concurrent logins

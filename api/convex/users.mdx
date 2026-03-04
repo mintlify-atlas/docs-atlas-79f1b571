@@ -1,0 +1,96 @@
+---
+title: 'User Functions'
+description: 'Convex functions for user authentication and profile management'
+---
+
+User management functions handle authentication, user creation, and profile retrieval in Film Fanatic.
+
+## store
+
+Creates a new user or updates an existing user's profile information. This mutation is typically called after authentication to store or update user details.
+
+<ParamField path="email" type="string" optional>
+  User's email address
+</ParamField>
+
+<ParamField path="name" type="string" optional>
+  User's display name
+</ParamField>
+
+<ParamField path="image" type="string" optional>
+  URL to the user's profile image
+</ParamField>
+
+<ResponseField name="userId" type="Id<'users'>">
+  The ID of the created or updated user record
+</ResponseField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useMutation } from "convex/react";
+
+const storeUser = useMutation(api.users.store);
+
+// Store user after authentication
+await storeUser({
+  email: "user@example.com",
+  name: "John Doe",
+  image: "https://example.com/avatar.jpg"
+});
+```
+
+### Behavior
+
+- Requires authentication via `ctx.auth.getUserIdentity()`
+- If user exists (matched by `tokenIdentifier`), updates their profile
+- If user doesn't exist, creates a new user record
+- Returns the user's database ID in both cases
+
+---
+
+## getStatus
+
+Retrieves the current authenticated user's profile information.
+
+<ResponseField name="user" type="object | null">
+  The user object if authenticated, or null if not authenticated
+  
+  <ResponseField name="_id" type="Id<'users'>">
+    User's database ID
+  </ResponseField>
+  
+  <ResponseField name="tokenIdentifier" type="string">
+    Authentication token identifier
+  </ResponseField>
+  
+  <ResponseField name="email" type="string" optional>
+    User's email address
+  </ResponseField>
+  
+  <ResponseField name="name" type="string" optional>
+    User's display name
+  </ResponseField>
+  
+  <ResponseField name="image" type="string" optional>
+    URL to user's profile image
+  </ResponseField>
+</ResponseField>
+
+```typescript
+import { api } from "@/convex/_generated/api";
+import { useQuery } from "convex/react";
+
+const user = useQuery(api.users.getStatus);
+
+if (user) {
+  console.log(`Logged in as ${user.name}`);
+} else {
+  console.log("Not authenticated");
+}
+```
+
+### Behavior
+
+- Returns `null` if user is not authenticated
+- Returns the full user object if authenticated
+- Uses authentication context to find the user by `tokenIdentifier`

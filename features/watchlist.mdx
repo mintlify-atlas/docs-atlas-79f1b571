@@ -1,0 +1,409 @@
+---
+title: Watchlist
+description: Understanding Film Fanatic's hybrid watchlist storage and watch status management
+---
+
+## Overview
+
+Film Fanatic implements a sophisticated **hybrid storage system** for watchlists that works both with and without user authentication. The system synchronizes between local browser storage (for anonymous users) and cloud storage via Convex (for authenticated users).
+
+## Storage Architecture
+
+### Hybrid Storage Model
+
+<CardGroup cols={2}>
+  <Card title="Local Storage" icon="hard-drive">
+    **Anonymous Users**
+    - Data stored in browser localStorage
+    - Uses Zustand for state management
+    - Persists across browser sessions
+    - No account required
+  </Card>
+  <Card title="Cloud Storage" icon="cloud">
+    **Authenticated Users**
+    - Synced via Convex backend
+    - Available across all devices
+    - Real-time synchronization
+    - Optimistic UI updates
+  </Card>
+</CardGroup>
+
+### Implementation Details
+
+Location: `src/hooks/usewatchlist.ts`
+
+<Accordion title="Zustand Store (Local)">
+  The `useWatchlistStore` provides:
+  
+  ```typescript
+  interface WatchlistStore {
+    mediaState: WatchlistItem[];
+    setWatchlistMembershipLocal: (id, type, inWatchlist, metadata) => void;
+    setProgressStatusLocal: (id, type, progressStatus, progress, metadata) => void;
+    setReactionLocal: (id, type, reaction, metadata) => void;
+    setProgressLocal: (id, type, progress, metadata) => void;
+  }
+  ```
+  
+  - Persists to `localStorage` under key `watchlist-storage`
+  - Fallback to in-memory storage for server-side rendering
+  - Automatic JSON serialization/deserialization
+</Accordion>
+
+<Accordion title="Convex Backend (Cloud)">
+  Backend schema: `convex/schema.ts` and `convex/watchlist.ts`
+  
+  Key mutations:
+  - `setWatchlistMembership` - Add/remove from watchlist
+  - `setProgressStatus` - Update watch status
+  - `setReaction` - Set mood/reaction
+  - `updateProgress` - Track percentage watched
+  - `markEpisodeWatched` - Episode-level tracking
+  
+  All mutations include optimistic updates for instant UI feedback.
+</Accordion>
+
+## Watchlist Data Structure
+
+Each watchlist item contains:
+
+```typescript
+type WatchlistItem = {
+  title: string;              // Movie/show title
+  type: "movie" | "tv";       // Media type
+  external_id: string;        // TMDB ID
+  image: string;              // Poster path
+  rating: number;             // TMDB rating
+  release_date: string;       // Release/air date
+  overview?: string;          // Description
+  updated_at: number;         // Last modified timestamp
+  created_at: number;         // Added timestamp
+  inWatchlist: boolean;       // Membership flag
+  progressStatus: ProgressStatus | null;  // Watch status
+  reaction: ReactionStatus | null;        // User reaction
+  progress?: number;          // Percentage watched
+};
+```
+
+Location: `src/hooks/usewatchlist.ts:38-52`
+
+## Watch Statuses
+
+### Progress Status
+
+Users can mark items with one of four progress statuses:
+
+<CardGroup cols={2}>
+  <Card title="Plan to Watch" icon="clock">
+    Content the user intends to watch but hasn't started.
+    
+    Value: `"want-to-watch"`
+  </Card>
+  <Card title="Watching" icon="eye">
+    Currently in progress, actively watching.
+    
+    Value: `"watching"`
+  </Card>
+  <Card title="Completed" icon="check-circle">
+    Finished watching entirely.
+    
+    Value: `"finished"`
+  </Card>
+  <Card title="Dropped" icon="x">
+    Started but chose not to continue.
+    
+    Value: `"dropped"`
+  </Card>
+</CardGroup>
+
+### Reaction Status
+
+After watching, users can optionally add a mood/reaction:
+
+<Tabs>
+  <Tab title="Loved">
+    Absolutely enjoyed the content.
+    
+    Value: `"loved"` | Icon: Heart ❤️
+  </Tab>
+  <Tab title="Liked">
+    Positive experience overall.
+    
+    Value: `"liked"` | Icon: Smile 😊
+  </Tab>
+  <Tab title="Mixed">
+    Had both positive and negative feelings.
+    
+    Value: `"mixed"` | Icon: Meh 😐
+  </Tab>
+  <Tab title="Not For Me">
+    Didn't resonate, not their type of content.
+    
+    Value: `"not-for-me"` | Icon: Frown ☹️
+  </Tab>
+</Tabs>
+
+<Note>
+  Reactions are independent of progress status. A user can love something they dropped or have mixed feelings about something they completed.
+</Note>
+
+## Watchlist Page UI
+
+Location: `src/routes/watchlist.tsx`
+
+### Filter System
+
+<Tabs>
+  <Tab title="Progress Filters">
+    Primary filter tabs showing counts:
+    - **All** - Everything except dropped items
+    - **Plan to Watch** - Unwatched content
+    - **Watching** - In progress
+    - **Completed** - Finished items
+    - **Dropped** - Discontinued content
+  </Tab>
+  <Tab title="Secondary Filters">
+    Additional refinement options:
+    - **Type** - All / Movies / Series
+    - **Mood** - All / No mood / Loved / Liked / Mixed / Not for me
+    - **Sort** - Recently Added / Highest Rated / A → Z / Newest Release
+  </Tab>
+</Tabs>
+
+### Active Filter Display
+
+The "Filters" button shows a badge with the number of active secondary filters. Users can:
+- Toggle filters panel
+- Reset all secondary filters at once
+- See real-time count updates as they apply filters
+
+Implementation: `src/routes/watchlist.tsx:298-316`
+
+### Empty States
+
+<CardGroup cols={2}>
+  <Card title="No Items" icon="inbox">
+    Shown when the watchlist is completely empty.
+    
+    Message: "No items in your watchlist"
+  </Card>
+  <Card title="No Matches" icon="filter">
+    Shown when filters exclude all items.
+    
+    Message: "No items match your filters"
+  </Card>
+</CardGroup>
+
+## Import/Export
+
+Location: `src/hooks/usewatchlistimportexport.ts`
+
+### Export Watchlist
+
+<Steps>
+  <Step title="Click Export Button">
+    Located in the top-right of the watchlist page.
+  </Step>
+  <Step title="JSON File Generated">
+    Browser downloads a JSON file containing all watchlist data:
+    - All items with metadata
+    - Progress statuses
+    - Reactions
+    - Timestamps
+  </Step>
+  <Step title="Backup Complete">
+    File can be stored for backup or transferred to another device.
+  </Step>
+</Steps>
+
+### Import Watchlist
+
+<Steps>
+  <Step title="Click Import Button">
+    Opens file picker dialog.
+  </Step>
+  <Step title="Select JSON File">
+    Choose a previously exported watchlist JSON file.
+  </Step>
+  <Step title="Validation">
+    System validates the file structure:
+    - Checks for required fields
+    - Identifies invalid entries
+    - Shows warning if some items can't be imported
+  </Step>
+  <Step title="Merge">
+    Valid items are merged into existing watchlist:
+    - Duplicates are skipped or updated based on timestamp
+    - New items are added
+    - User is notified of results
+  </Step>
+</Steps>
+
+<Warning>
+  Import/export works for both local and cloud-synced watchlists. Imported data follows the same hybrid storage rules.
+</Warning>
+
+## Watchlist Button Component
+
+Location: `src/components/watchlist-button.tsx`
+
+The watchlist button appears throughout the app:
+
+### Placement
+- Homepage media cards
+- Search result cards
+- Media detail pages (movie/TV)
+- Collection pages
+
+### Visual States
+
+<Tabs>
+  <Tab title="Not in Watchlist">
+    Shows outline bookmark icon.
+    
+    Label: "Add to watchlist"
+  </Tab>
+  <Tab title="In Watchlist">
+    Shows filled bookmark icon.
+    
+    Label: "Remove from watchlist"
+  </Tab>
+  <Tab title="On Watchlist Page">
+    Shows trash bin icon for removal.
+    
+    Label: "Remove from watchlist"
+  </Tab>
+</Tabs>
+
+### Toggle Behavior
+
+Implementation: `src/hooks/usewatchlist.ts:405-531`
+
+```typescript
+const toggle = useToggleWatchlistItem();
+
+await toggle({
+  title: "Inception",
+  rating: 8.8,
+  image: "/poster.jpg",
+  id: "27205",
+  media_type: "movie",
+  release_date: "2010-07-16",
+  overview: "..."
+});
+```
+
+- Automatically detects current membership
+- Adds if not in watchlist, removes if already present
+- Syncs to appropriate storage (local or cloud)
+- Provides optimistic UI update
+
+## Real-Time Sync for Authenticated Users
+
+### Optimistic Updates
+
+All Convex mutations use optimistic updates:
+
+1. **User Action** - Clicks watchlist button
+2. **Immediate UI Update** - Button state changes instantly
+3. **Backend Mutation** - Sent to Convex server
+4. **Success** - UI remains updated
+5. **Failure** - UI reverts to previous state
+
+Location: `src/hooks/usewatchlist.ts:407-483`
+
+### Multi-Device Sync
+
+For authenticated users:
+- Changes on one device appear on all devices
+- Real-time subscription via Convex queries
+- Automatic conflict resolution (last-write-wins)
+- No manual refresh needed
+
+## Watchlist Card Display
+
+Location: `src/routes/watchlist.tsx:434-552`
+
+Each card shows:
+
+<CardGroup cols={2}>
+  <Card title="Visual Info" icon="image">
+    - Poster thumbnail
+    - Media type badge (MOVIE/TV)
+    - Star rating
+    - Release date
+  </Card>
+  <Card title="Status Info" icon="info">
+    - Title (truncated to 2 lines)
+    - Overview (truncated to 2 lines)
+    - Progress status badge
+    - Reaction/mood badge
+  </Card>
+</CardGroup>
+
+### Card Actions
+
+1. **Click Poster/Title** - Navigate to media detail page
+2. **Click Remove** - Remove from watchlist with confirmation
+
+## Progress Calculation
+
+For TV shows, progress is calculated based on episode watch tracking:
+
+```typescript
+const progress = (watchedEpisodes / totalEpisodes) * 100;
+```
+
+For movies, progress is set directly:
+- 0% - Want to watch
+- 1-99% - Watching (partial playback)
+- 100% - Finished
+
+Location: `src/hooks/useWatchProgress.ts`
+
+## Migration and Legacy Support
+
+The system includes migration logic for legacy statuses:
+
+Old status → New status mapping:
+- `"plan-to-watch"` → `progressStatus: "want-to-watch"`, `reaction: null`
+- `"watching"` → `progressStatus: "watching"`, `reaction: null`
+- `"completed"` → `progressStatus: "finished"`, `reaction: null`
+- `"liked"` → `progressStatus: "finished"`, `reaction: "liked"`
+- `"dropped"` → `progressStatus: "dropped"`, `reaction: null`
+
+Location: `src/hooks/usewatchlist.ts:132-157`
+
+## API Reference
+
+### Hooks
+
+<CodeGroup>
+```typescript useWatchlist
+// Get full watchlist
+const { watchlist, loading } = useWatchlist();
+```
+
+```typescript useWatchlistItem
+// Check membership
+const { isOnWatchList } = useWatchlistItem(id, "movie");
+```
+
+```typescript useToggleWatchlistItem
+// Add/remove from watchlist
+const toggle = useToggleWatchlistItem();
+await toggle({ id, title, rating, ... });
+```
+
+```typescript useSetProgressStatus
+// Update watch status
+const setStatus = useSetProgressStatus();
+setStatus(id, "movie", "finished", metadata);
+```
+
+```typescript useSetReaction
+// Set user reaction
+const setReaction = useSetReaction();
+setReaction(id, "tv", "loved", metadata);
+```
+</CodeGroup>

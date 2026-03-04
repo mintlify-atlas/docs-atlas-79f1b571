@@ -1,0 +1,353 @@
+---
+title: Database Schema
+description: Understanding the Convex database structure for watchlists and user data
+---
+
+Film Fanatic uses [Convex](https://convex.dev) as its real-time backend database. The schema is designed to support user authentication, watchlist management, and granular episode tracking.
+
+## Schema Overview
+
+The database consists of three main tables:
+
+- **users**: Stores user profiles from Clerk authentication
+- **watch_items**: Tracks movies and TV shows in user watchlists
+- **episode_progress**: Records individual episode watch status for TV shows
+
+## Users Table
+
+Stores authenticated user information synced from Clerk.
+
+```typescript convex/schema.ts
+users: defineTable({
+  tokenIdentifier: v.string(),
+  name: v.optional(v.string()),
+  image: v.optional(v.string()),
+  email: v.optional(v.string()),
+}).index("by_token", ["tokenIdentifier"])
+```
+
+### Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `tokenIdentifier` | `string` | Yes | Unique Clerk user ID (JWT subject) |
+| `name` | `string` | No | User's display name |
+| `image` | `string` | No | Profile picture URL |
+| `email` | `string` | No | User's email address |
+
+### Indexes
+
+- **by_token**: Indexes on `tokenIdentifier` for fast user lookup by Clerk ID
+
+### Usage Example
+
+```typescript
+// Find user by Clerk token
+const user = await ctx.db
+  .query("users")
+  .withIndex("by_token", (q) => q.eq("tokenIdentifier", clerkUserId))
+  .first();
+```
+
+## Watch Items Table
+
+Tracks movies and TV shows added to watchlists, including progress and reactions.
+
+```typescript convex/schema.ts
+watch_items: defineTable({
+  userId: v.id("users"),
+  tmdbId: v.number(),
+  mediaType: v.string(), // "movie" | "tv"
+  
+  // Watchlist membership
+  inWatchlist: v.optional(v.boolean()),
+  
+  // New split status model
+  progressStatus: v.optional(v.string()), // "want-to-watch" | "watching" | "finished"
+  reaction: v.optional(v.string()), // "loved" | "liked" | "mixed" | "not-for-me"
+  
+  // Legacy combined status (for compatibility)
+  status: v.optional(v.string()),
+  
+  progress: v.optional(v.number()), // 0-100
+  
+  // Metadata for display
+  title: v.optional(v.string()),
+  image: v.optional(v.string()),
+  rating: v.optional(v.number()),
+  release_date: v.optional(v.string()),
+  overview: v.optional(v.string()),
+  
+  updatedAt: v.number(),
+})
+  .index("by_user_media", ["userId", "tmdbId", "mediaType"])
+  .index("by_user", ["userId"])
+```
+
+### Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `userId` | `Id<"users">` | Yes | Reference to users table |
+| `tmdbId` | `number` | Yes | The Movie Database ID |
+| `mediaType` | `string` | Yes | Either "movie" or "tv" |
+| `inWatchlist` | `boolean` | No | Whether item is in watchlist (decoupled from tracking) |
+| `progressStatus` | `string` | No | Watching progress: "want-to-watch", "watching", "finished" |
+| `reaction` | `string` | No | User reaction: "loved", "liked", "mixed", "not-for-me" |
+| `status` | `string` | No | Legacy status field for backward compatibility |
+| `progress` | `number` | No | Percentage complete (0-100) |
+| `title` | `string` | No | Cached media title |
+| `image` | `string` | No | Cached poster image URL |
+| `rating` | `number` | No | TMDB rating |
+| `release_date` | `string` | No | Release or air date |
+| `overview` | `string` | No | Media description |
+| `updatedAt` | `number` | Yes | Timestamp of last update |
+
+### Indexes
+
+- **by_user_media**: Composite index on `[userId, tmdbId, mediaType]` for fast lookups of specific media items
+- **by_user**: Index on `userId` for fetching all items for a user
+
+### Status Model
+
+Film Fanatic uses a split status model separating progress from reactions:
+
+**Progress Status**:
+- `want-to-watch`: Added to watchlist but not started
+- `watching`: Currently in progress
+- `finished`: Completed watching
+
+**Reactions**:
+- `loved`: Highly enjoyed
+- `liked`: Enjoyed
+- `mixed`: Mixed feelings
+- `not-for-me`: Didn't enjoy
+
+### Usage Example
+
+```typescript
+// Get a specific media item
+const item = await ctx.db
+  .query("watch_items")
+  .withIndex("by_user_media", (q) =>
+    q.eq("userId", userId)
+     .eq("tmdbId", 12345)
+     .eq("mediaType", "movie")
+  )
+  .first();
+
+// Get all watchlist items for a user
+const watchlist = await ctx.db
+  .query("watch_items")
+  .withIndex("by_user", (q) => q.eq("userId", userId))
+  .collect();
+```
+
+## Episode Progress Table
+
+Tracks individual episode watch status for TV shows.
+
+```typescript convex/schema.ts
+episode_progress: defineTable({
+  userId: v.id("users"),
+  tmdbId: v.number(),
+  season: v.number(),
+  episode: v.number(),
+  isWatched: v.boolean(),
+  updatedAt: v.number(),
+})
+  .index("by_user_episode", ["userId", "tmdbId", "season", "episode"])
+  .index("by_user_season", ["userId", "tmdbId", "season"])
+  .index("by_user_media", ["userId", "tmdbId"])
+  .index("by_user", ["userId"])
+```
+
+### Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `userId` | `Id<"users">` | Yes | Reference to users table |
+| `tmdbId` | `number` | Yes | TV show TMDB ID |
+| `season` | `number` | Yes | Season number |
+| `episode` | `number` | Yes | Episode number within season |
+| `isWatched` | `boolean` | Yes | Whether episode has been watched |
+| `updatedAt` | `number` | Yes | Timestamp of last update |
+
+### Indexes
+
+- **by_user_episode**: Composite index on `[userId, tmdbId, season, episode]` for specific episode lookup
+- **by_user_season**: Index on `[userId, tmdbId, season]` for fetching all episodes in a season
+- **by_user_media**: Index on `[userId, tmdbId]` for fetching all episodes across all seasons
+- **by_user**: Index on `userId` for fetching all episode progress for a user
+
+### Usage Example
+
+```typescript
+// Mark a specific episode as watched
+await ctx.db.insert("episode_progress", {
+  userId: user._id,
+  tmdbId: 12345,
+  season: 1,
+  episode: 3,
+  isWatched: true,
+  updatedAt: Date.now(),
+});
+
+// Get all watched episodes for a show
+const episodes = await ctx.db
+  .query("episode_progress")
+  .withIndex("by_user_media", (q) =>
+    q.eq("userId", userId).eq("tmdbId", 12345)
+  )
+  .collect();
+
+// Get progress for a specific season
+const seasonProgress = await ctx.db
+  .query("episode_progress")
+  .withIndex("by_user_season", (q) =>
+    q.eq("userId", userId)
+     .eq("tmdbId", 12345)
+     .eq("season", 1)
+  )
+  .collect();
+```
+
+## Common Mutations
+
+### Add to Watchlist
+
+```typescript
+import { api } from "convex/_generated/api";
+
+const addToWatchlist = useMutation(api.watchlist.setWatchlistMembership);
+
+await addToWatchlist({
+  tmdbId: 12345,
+  mediaType: "movie",
+  inWatchlist: true,
+  title: "Inception",
+  image: "https://image.tmdb.org/...",
+  rating: 8.8,
+  release_date: "2010-07-16",
+  overview: "A thief who steals corporate secrets...",
+});
+```
+
+### Update Progress Status
+
+```typescript
+const updateStatus = useMutation(api.watchlist.setProgressStatus);
+
+await updateStatus({
+  tmdbId: 12345,
+  mediaType: "tv",
+  progressStatus: "watching",
+  progress: 45,
+});
+```
+
+### Set Reaction
+
+```typescript
+const setReaction = useMutation(api.watchlist.setReaction);
+
+await setReaction({
+  tmdbId: 12345,
+  mediaType: "movie",
+  reaction: "loved",
+});
+```
+
+### Mark Episode Watched
+
+```typescript
+const markEpisode = useMutation(api.watchlist.markEpisodeWatched);
+
+await markEpisode({
+  tmdbId: 12345,
+  season: 1,
+  episode: 5,
+  isWatched: true,
+});
+```
+
+## Data Migration
+
+Film Fanatic includes a backfill mutation to migrate legacy status fields to the new split status model:
+
+```typescript
+const backfill = useMutation(api.watchlist.backfillWatchItems);
+await backfill();
+```
+
+This automatically converts old status values:
+- `plan-to-watch` → `progressStatus: "want-to-watch"`
+- `watching` → `progressStatus: "watching"`
+- `completed` → `progressStatus: "finished"`
+- `liked` → `progressStatus: "finished"`, `reaction: "liked"`
+- `dropped` → Intelligently maps based on progress percentage
+
+## Performance Optimization
+
+### Batch Operations
+
+Use batch mutations to reduce round trips:
+
+```typescript
+const markShow = useMutation(api.watchlist.markShowEpisodesAndStatus);
+
+await markShow({
+  tmdbId: 12345,
+  mediaType: "tv",
+  seasons: [
+    { season: 1, episodes: [1, 2, 3, 4, 5] },
+    { season: 2, episodes: [1, 2, 3] },
+  ],
+  isWatched: true,
+  progressStatus: "watching",
+});
+```
+
+### Query Optimization
+
+Always use indexes for queries:
+
+```typescript
+// Good: Uses index
+const item = await ctx.db
+  .query("watch_items")
+  .withIndex("by_user_media", (q) => q.eq("userId", userId))
+  .first();
+
+// Bad: Full table scan
+const item = await ctx.db
+  .query("watch_items")
+  .filter((q) => q.eq(q.field("userId"), userId))
+  .first();
+```
+
+## Real-time Subscriptions
+
+Convex provides real-time updates automatically:
+
+```typescript
+import { useQuery } from "convex/react";
+import { api } from "convex/_generated/api";
+
+function Watchlist() {
+  // Automatically re-renders when data changes
+  const watchlist = useQuery(api.watchlist.getWatchlist);
+  
+  return (
+    <div>
+      {watchlist?.map(item => (
+        <div key={item._id}>{item.title}</div>
+      ))}
+    </div>
+  );
+}
+```
+
+<Note>
+  All queries automatically subscribe to real-time updates. When data changes in the database, React components re-render automatically.
+</Note>

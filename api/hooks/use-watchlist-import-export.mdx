@@ -1,0 +1,349 @@
+---
+title: useWatchlistImportExport
+description: Import and export watchlist data as JSON, supporting migration between accounts and backup/restore functionality
+---
+
+The `useWatchlistImportExport` hook provides comprehensive import/export functionality for watchlist data, including episode progress, watch status, and reactions.
+
+## Overview
+
+This hook enables users to:
+- Export their complete watchlist as a JSON file
+- Import watchlist data from previously exported files
+- Migrate watchlist data between accounts
+- Backup and restore watch history
+- Transfer data from other tracking services
+
+The export includes all watchlist metadata plus per-episode watch states for TV shows.
+
+## Basic Usage
+
+```tsx
+import { useWatchlistImportExport } from '@/hooks/usewatchlistimportexport';
+
+function WatchlistSettings() {
+  const {
+    exportWatchlist,
+    importWatchlist,
+    handleImportClick,
+    fileInputRef,
+    exportLoading,
+    importLoading,
+    error,
+  } = useWatchlistImportExport();
+
+  return (
+    <div>
+      <button 
+        onClick={exportWatchlist} 
+        disabled={exportLoading}
+      >
+        {exportLoading ? 'Exporting...' : 'Export Watchlist'}
+      </button>
+      
+      <button 
+        onClick={handleImportClick} 
+        disabled={importLoading}
+      >
+        {importLoading ? 'Importing...' : 'Import Watchlist'}
+      </button>
+      
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        onChange={importWatchlist}
+        style={{ display: 'none' }}
+      />
+      
+      {error && (
+        <div className="error">
+          {error.message}
+          {error.invalidItems && (
+            <span> ({error.invalidItems} items skipped)</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+## Return Values
+
+<ResponseField name="exportWatchlist" type="() => Promise<void>">
+  Exports the current watchlist to a JSON file. Automatically triggers a browser download with filename format `watchlist-YYYY-MM-DD.json`.
+  
+  **Export includes:**
+  - All watchlist items with full metadata
+  - Progress status and percentage
+  - User reactions (loved, liked, etc.)
+  - Episode watch states for TV shows
+  - Timestamps for last update
+</ResponseField>
+
+<ResponseField name="importWatchlist" type="(event: React.ChangeEvent<HTMLInputElement>) => Promise<void>">
+  Imports watchlist data from a JSON file selected via file input. Validates file format and data integrity before importing.
+  
+  **Validation checks:**
+  - File must be valid JSON
+  - File size must be under 10MB
+  - Each item must have required fields (title, external_id, type)
+  - Invalid items are skipped with error reporting
+</ResponseField>
+
+<ResponseField name="handleImportClick" type="() => void">
+  Programmatically triggers the file input dialog. Use this instead of directly clicking the hidden input element.
+</ResponseField>
+
+<ResponseField name="handleKeyDown" type="(e: React.KeyboardEvent<HTMLButtonElement>) => void">
+  Keyboard event handler for accessibility. Triggers import on Enter or Space key press.
+</ResponseField>
+
+<ResponseField name="fileInputRef" type="React.RefObject<HTMLInputElement>">
+  Ref to attach to the hidden file input element.
+</ResponseField>
+
+<ResponseField name="exportLoading" type="boolean">
+  Loading state for export operation
+</ResponseField>
+
+<ResponseField name="importLoading" type="boolean">
+  Loading state for import operation
+</ResponseField>
+
+<ResponseField name="error" type="ImportError | null">
+  Error information from import/export operations
+  
+  <Expandable title="ImportError properties">
+    <ResponseField name="message" type="string">
+      Human-readable error message
+    </ResponseField>
+    <ResponseField name="invalidItems" type="number | undefined">
+      Count of items that failed validation (if any)
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="loading" type="boolean">
+  Loading state for initial watchlist fetch
+</ResponseField>
+
+<ResponseField name="watchlist" type="WatchlistItem[]">
+  Current watchlist data (passed through from useWatchlist)
+</ResponseField>
+
+<ResponseField name="setError" type="(error: ImportError | null) => void">
+  Manually set or clear error state
+</ResponseField>
+
+## Export Format
+
+The exported JSON file has the following structure:
+
+```json
+[
+  {
+    "title": "Breaking Bad",
+    "type": "tv",
+    "external_id": "1396",
+    "image": "/ggFHVNu6YYI5L9pCfOacjizRGt.jpg",
+    "rating": 8.9,
+    "release_date": "2008-01-20",
+    "overview": "A high school chemistry teacher...",
+    "updated_at": 1709856234000,
+    "created_at": 1709756234000,
+    "inWatchlist": true,
+    "progressStatus": "watching",
+    "reaction": "loved",
+    "progress": 45,
+    "watchedEpisodes": {
+      "1:1": true,
+      "1:2": true,
+      "1:3": true,
+      "2:1": true
+    }
+  },
+  {
+    "title": "The Matrix",
+    "type": "movie",
+    "external_id": "603",
+    "image": "/f89U3ADr1oiB1s9GkdPOEpXUk5H.jpg",
+    "rating": 8.2,
+    "release_date": "1999-03-30",
+    "overview": "Set in the 22nd century...",
+    "updated_at": 1709856234000,
+    "created_at": 1709756234000,
+    "inWatchlist": true,
+    "progressStatus": "finished",
+    "reaction": "liked",
+    "progress": 100
+  }
+]
+```
+
+### Episode Format
+
+For TV shows, the `watchedEpisodes` object uses keys in the format `"${season}:${episode}"` with boolean values:
+
+```json
+{
+  "watchedEpisodes": {
+    "1:1": true,   // Season 1, Episode 1
+    "1:2": true,   // Season 1, Episode 2
+    "2:5": true,   // Season 2, Episode 5
+    "0:1": true    // Special episode
+  }
+}
+```
+
+## Import Behavior
+
+When importing, the hook:
+
+1. **Validates File**: Checks JSON format, file size, and data structure
+2. **Validates Items**: Each item must have `title`, `external_id`, and valid `type`
+3. **Maps Legacy Status**: Converts old status values to new progressStatus/reaction model
+4. **Creates Watchlist Entries**: Adds items to watchlist with full metadata
+5. **Sets Progress Status**: Applies progress status (want-to-watch, watching, finished, dropped)
+6. **Sets Reactions**: Applies user reactions (loved, liked, mixed, not-for-me)
+7. **Syncs Episode Progress**: For TV shows, marks individual episodes as watched
+
+### Legacy Status Mapping
+
+The importer automatically converts legacy status values:
+
+| Legacy Status | Progress Status | Reaction |
+|--------------|----------------|----------|
+| `plan-to-watch` | `want-to-watch` | `null` |
+| `watching` | `watching` | `null` |
+| `completed` | `finished` | `null` |
+| `liked` | `finished` | `liked` |
+| `dropped` | `dropped` | `null` |
+
+## Complete Example
+
+```tsx
+import { useWatchlistImportExport } from '@/hooks/usewatchlistimportexport';
+import { Button } from '@/components/ui/button';
+import { Alert } from '@/components/ui/alert';
+
+function WatchlistBackup() {
+  const {
+    exportWatchlist,
+    importWatchlist,
+    handleImportClick,
+    handleKeyDown,
+    fileInputRef,
+    exportLoading,
+    importLoading,
+    error,
+    setError,
+    watchlist,
+  } = useWatchlistImportExport();
+
+  const hasItems = watchlist.length > 0;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2>Backup & Restore</h2>
+        <p>Export your watchlist to back up your data or transfer to another account.</p>
+      </div>
+
+      <div className="flex gap-2">
+        <Button
+          onClick={exportWatchlist}
+          disabled={exportLoading || !hasItems}
+        >
+          {exportLoading ? 'Exporting...' : `Export Watchlist (${watchlist.length} items)`}
+        </Button>
+
+        <Button
+          onClick={handleImportClick}
+          onKeyDown={handleKeyDown}
+          disabled={importLoading}
+          variant="outline"
+        >
+          {importLoading ? 'Importing...' : 'Import Watchlist'}
+        </Button>
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".json"
+          onChange={importWatchlist}
+          className="hidden"
+          aria-label="Select watchlist JSON file"
+        />
+      </div>
+
+      {error && (
+        <Alert variant={error.invalidItems ? 'warning' : 'error'}>
+          <p>{error.message}</p>
+          {error.invalidItems && error.invalidItems > 0 && (
+            <p className="text-sm mt-1">
+              {error.invalidItems} invalid items were skipped during import.
+            </p>
+          )}
+          <Button
+            onClick={() => setError(null)}
+            size="sm"
+            variant="ghost"
+          >
+            Dismiss
+          </Button>
+        </Alert>
+      )}
+
+      {!hasItems && (
+        <Alert>
+          Your watchlist is empty. Add some movies or TV shows before exporting.
+        </Alert>
+      )}
+    </div>
+  );
+}
+```
+
+## Error Handling
+
+The hook provides detailed error messages for common issues:
+
+### File Validation Errors
+
+- `"Please select a valid JSON file."` - File doesn't end with `.json`
+- `"File size exceeds 10MB limit."` - File is too large
+- `"File is empty."` - Selected file has no content
+- `"Invalid file format: Expected a JSON array."` - JSON is not an array
+
+### Data Validation Errors
+
+- `"No valid items found in the watchlist file."` - All items failed validation
+- Partial success: `"Successfully imported X items. Y invalid items were skipped."`
+
+### Import Errors
+
+- `"Import failed: [error details]"` - General import failure with specific reason
+- `"Error reading file. Please try again."` - File reading failed
+
+## Security Considerations
+
+- **File Size Limit**: 10MB maximum to prevent memory issues
+- **JSON Validation**: All input is validated before processing
+- **Type Checking**: Media types restricted to `'movie' | 'tv'`
+- **Sanitization**: Invalid items are filtered out before import
+- **No Code Execution**: Pure data import, no eval or dynamic code
+
+## Performance Notes
+
+- **Sequential Import**: Items are imported one at a time to ensure data consistency
+- **Optimistic Updates**: Uses Convex optimistic mutations for responsive UI
+- **File Reading**: Async file reading prevents UI blocking
+- **Auto-cleanup**: File input is reset after each import attempt
+
+## Source
+
+**Location**: `~/workspace/source/src/hooks/usewatchlistimportexport.ts`
+
+The hook integrates with Convex mutations for authenticated users and local storage for guest users.

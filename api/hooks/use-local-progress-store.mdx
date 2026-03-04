@@ -1,0 +1,283 @@
+---
+title: useLocalProgressStore
+description: Zustand store for tracking episode watch status in localStorage for guest users
+---
+
+The `useLocalProgressStore` hook provides local storage persistence for episode watch states when users are not authenticated. It uses Zustand with localStorage middleware to maintain watch progress across browser sessions.
+
+## Overview
+
+This store is automatically used by higher-level hooks like `useEpisodeWatched` when the user is not signed in. You typically won't need to use this hook directly unless you're building custom progress tracking functionality.
+
+## Basic Usage
+
+```tsx
+import { useLocalProgressStore } from '@/hooks/useLocalProgressStore';
+
+function CustomProgressTracker() {
+  const watchedEpisodes = useLocalProgressStore((state) => state.watchedEpisodes);
+  const markEpisodeWatched = useLocalProgressStore((state) => state.markEpisodeWatched);
+  
+  const handleMarkWatched = () => {
+    // Mark Breaking Bad S1E1 as watched
+    markEpisodeWatched(1396, 1, 1, true);
+  };
+  
+  // Check if episode is watched
+  const isWatched = watchedEpisodes['1396:1:1'] === true;
+  
+  return (
+    <button onClick={handleMarkWatched}>
+      {isWatched ? 'Watched ✓' : 'Mark as Watched'}
+    </button>
+  );
+}
+```
+
+## Store State
+
+<ResponseField name="watchedEpisodes" type="Record<string, boolean>">
+  Dictionary of watched episode states. Keys use the format `${tmdbId}:${season}:${episode}`.
+  
+  Example:
+  ```typescript
+  {
+    "1396:1:1": true,  // Breaking Bad S1E1
+    "1396:1:2": true,  // Breaking Bad S1E2
+    "82856:2:5": true  // The Mandalorian S2E5
+  }
+  ```
+</ResponseField>
+
+## Store Actions
+
+### markEpisodeWatched
+
+Mark a single episode as watched or unwatched.
+
+```tsx
+const markEpisodeWatched = useLocalProgressStore(
+  (state) => state.markEpisodeWatched
+);
+
+// Mark as watched
+markEpisodeWatched(1396, 1, 1, true);
+
+// Mark as unwatched
+markEpisodeWatched(1396, 1, 1, false);
+```
+
+#### Parameters
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the TV show
+</ParamField>
+
+<ParamField path="season" type="number" required>
+  Season number (typically 1-based, but can be 0 for specials)
+</ParamField>
+
+<ParamField path="episode" type="number" required>
+  Episode number within the season
+</ParamField>
+
+<ParamField path="isWatched" type="boolean" required>
+  `true` to mark as watched, `false` to mark as unwatched
+</ParamField>
+
+#### Behavior
+
+- When `isWatched` is `true`, adds the episode key to `watchedEpisodes` with value `true`
+- When `isWatched` is `false`, removes the episode key from `watchedEpisodes`
+- Changes are automatically persisted to localStorage under the key `local-progress-store`
+
+### markSeasonWatched
+
+Mark all episodes in a season as watched or unwatched.
+
+```tsx
+const markSeasonWatched = useLocalProgressStore(
+  (state) => state.markSeasonWatched
+);
+
+// Mark entire season 1 as watched
+const episodeNumbers = [1, 2, 3, 4, 5, 6, 7];
+markSeasonWatched(1396, 1, episodeNumbers, true);
+
+// Unmark entire season 1
+markSeasonWatched(1396, 1, episodeNumbers, false);
+```
+
+#### Parameters
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the TV show
+</ParamField>
+
+<ParamField path="season" type="number" required>
+  Season number
+</ParamField>
+
+<ParamField path="episodes" type="number[]" required>
+  Array of episode numbers to mark
+</ParamField>
+
+<ParamField path="isWatched" type="boolean" required>
+  `true` to mark all episodes as watched, `false` to unmark all
+</ParamField>
+
+#### Example Usage
+
+```tsx
+import { useLocalProgressStore } from '@/hooks/useLocalProgressStore';
+
+function SeasonToggleButton({ tvId, seasonNumber, episodeCount }) {
+  const markSeasonWatched = useLocalProgressStore(
+    (state) => state.markSeasonWatched
+  );
+  const watchedEpisodes = useLocalProgressStore(
+    (state) => state.watchedEpisodes
+  );
+  
+  // Check if all episodes are watched
+  const episodeNumbers = Array.from(
+    { length: episodeCount },
+    (_, i) => i + 1
+  );
+  
+  const allWatched = episodeNumbers.every(
+    (ep) => watchedEpisodes[`${tvId}:${seasonNumber}:${ep}`]
+  );
+  
+  const handleToggle = () => {
+    markSeasonWatched(tvId, seasonNumber, episodeNumbers, !allWatched);
+  };
+  
+  return (
+    <button onClick={handleToggle}>
+      {allWatched ? 'Unmark Season' : 'Mark Season Watched'}
+    </button>
+  );
+}
+```
+
+### clearShowProgress
+
+Remove all episode progress data for a specific TV show.
+
+```tsx
+const clearShowProgress = useLocalProgressStore(
+  (state) => state.clearShowProgress
+);
+
+// Clear all progress for Breaking Bad
+clearShowProgress(1396);
+```
+
+#### Parameters
+
+<ParamField path="tmdbId" type="number" required>
+  TMDB ID of the TV show to clear
+</ParamField>
+
+#### Behavior
+
+Removes all episode entries with keys starting with `${tmdbId}:` from the store. Useful for:
+- Resetting watch progress for a show
+- Cleaning up after show deletion
+- Testing and development
+
+## Storage Key Format
+
+Episode keys use a colon-separated format:
+
+```
+${tmdbId}:${season}:${episode}
+```
+
+Examples:
+- `"1396:1:1"` - Breaking Bad, Season 1, Episode 1
+- `"82856:2:16"` - The Mandalorian, Season 2, Episode 16
+- `"60574:0:1"` - Special episode (season 0)
+
+## Implementation Details
+
+### Persistence Strategy
+
+The store uses Zustand's `persist` middleware with the following configuration:
+
+```typescript
+persist(
+  (set) => ({ /* store implementation */ }),
+  {
+    name: 'local-progress-store',
+    storage: createJSONStorage(() => 
+      typeof window !== 'undefined' 
+        ? window.localStorage 
+        : memoryStorage
+    ),
+  }
+)
+```
+
+### Memory Storage Fallback
+
+In SSR or non-browser environments, the store falls back to an in-memory storage implementation to prevent crashes:
+
+```typescript
+const memoryStorage: Storage = (() => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (name) => (name in store ? store[name] : null),
+    setItem: (name, value) => { store[name] = String(value); },
+    removeItem: (name) => { delete store[name]; },
+    clear: () => { store = {}; },
+    // ...
+  };
+})();
+```
+
+### Integration with useEpisodeWatched
+
+The local progress store is automatically used by `useEpisodeWatched` when the user is not signed in:
+
+```typescript
+// From useEpisodeWatched hook
+const localEpisodes = useLocalProgressStore(
+  (state) => state.watchedEpisodes
+);
+const markLocalEpisode = useLocalProgressStore(
+  (state) => state.markEpisodeWatched
+);
+
+if (!isSignedIn) {
+  // Use local storage
+  markLocalEpisode(tmdbId, season, episode, isWatched);
+} else {
+  // Use Convex mutation
+  markEpisodeWatchedMut({ tmdbId, season, episode, isWatched });
+}
+```
+
+## Performance Considerations
+
+- **Automatic Batching**: Zustand automatically batches state updates for optimal performance
+- **Selective Subscriptions**: Use selector functions to subscribe only to needed state:
+  ```tsx
+  // Good - only re-renders when watchedEpisodes changes
+  const episodes = useLocalProgressStore((state) => state.watchedEpisodes);
+  
+  // Avoid - re-renders on any state change
+  const store = useLocalProgressStore();
+  ```
+- **Storage Size**: localStorage has typical limits of 5-10MB. Episode data is very compact (one boolean per episode)
+
+## Migration to Authenticated State
+
+When a user signs in, their local progress should be migrated to Convex. This is handled by the import/export system (see [useWatchlistImportExport](/api/hooks/use-watchlist-import-export)).
+
+## Source
+
+**Location**: `~/workspace/source/src/hooks/useLocalProgressStore.ts`
+
+The store is a lightweight Zustand implementation with just 95 lines of code, providing essential episode tracking for guest users.

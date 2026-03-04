@@ -1,0 +1,463 @@
+---
+title: Installation
+description: Complete setup guide for Film Fanatic with prerequisites, configuration, and troubleshooting
+---
+
+# Installation Guide
+
+This comprehensive guide covers everything you need to set up Film Fanatic with all features enabled, including authentication and cloud synchronization.
+
+## Prerequisites
+
+### Required Software
+
+<Steps>
+  <Step title="Node.js 20+">
+    Film Fanatic requires Node.js version 20 or higher.
+    
+    **Download:** [nodejs.org](https://nodejs.org/)
+    
+    **Verify installation:**
+    ```bash
+    node --version
+    # Should output v20.0.0 or higher
+    ```
+  </Step>
+
+  <Step title="pnpm Package Manager">
+    Film Fanatic uses pnpm for dependency management.
+    
+    **Install pnpm:**
+    ```bash
+    npm install -g pnpm
+    ```
+    
+    **Verify installation:**
+    ```bash
+    pnpm --version
+    ```
+    
+    <Tip>
+    pnpm is faster and more disk-efficient than npm or yarn, making it ideal for large projects.
+    </Tip>
+  </Step>
+
+  <Step title="Git">
+    Required for cloning the repository.
+    
+    **Download:** [git-scm.com](https://git-scm.com/)
+    
+    **Verify installation:**
+    ```bash
+    git --version
+    ```
+  </Step>
+</Steps>
+
+### Required API Keys and Accounts
+
+<AccordionGroup>
+  <Accordion title="TMDB API Access Token (Required)">
+    The Movie Database (TMDB) provides all movie and TV show data.
+    
+    **Setup Steps:**
+    1. Create a free account at [themoviedb.org](https://www.themoviedb.org/signup)
+    2. Navigate to Settings → API
+    3. Request an API key (select "Developer" for non-commercial use)
+    4. Copy the **API Read Access Token** (v4 auth, not the v3 API Key)
+    
+    <Note>
+    The access token is a long Bearer token that starts with `eyJ`. This is different from the shorter v3 API key.
+    </Note>
+  </Accordion>
+
+  <Accordion title="Convex Account (Optional for development)">
+    Convex powers the real-time backend and cloud sync.
+    
+    **Setup Steps:**
+    1. Sign up at [convex.dev](https://www.convex.dev/)
+    2. Create a new project
+    3. Run `npx convex dev` in your project to link it
+    4. Copy the deployment URL and deploy key from the dashboard
+    
+    <Tip>
+    Without Convex, the app works in local-only mode using localStorage. Convex is needed for:
+    - User authentication sync
+    - Cross-device watchlist synchronization
+    - Real-time updates
+    </Tip>
+  </Accordion>
+
+  <Accordion title="Clerk Account (Optional for development)">
+    Clerk provides secure authentication and user management.
+    
+    **Setup Steps:**
+    1. Sign up at [clerk.com](https://clerk.com/)
+    2. Create a new application
+    3. Choose your authentication methods (Email, Google, etc.)
+    4. Copy the publishable key and secret key from the dashboard
+    5. Configure the Clerk issuer URL in Convex settings
+    
+    <Warning>
+    Clerk and Convex must be configured together for authentication to work. The Clerk issuer URL must match your Convex domain.
+    </Warning>
+  </Accordion>
+</AccordionGroup>
+
+## Installation Process
+
+### Step 1: Clone the Repository
+
+Clone Film Fanatic from the official GitHub repository:
+
+```bash
+git clone https://github.com/Swastikdan/Film-Fanatic.git
+cd film-fanatic
+```
+
+### Step 2: Install Dependencies
+
+Install all required npm packages:
+
+```bash
+pnpm install
+```
+
+This installs:
+- **Framework:** TanStack Start, React 19, Nitro
+- **Backend:** Convex client and React Query integration
+- **Auth:** Clerk React SDK
+- **UI:** Tailwind CSS 4.0, Radix UI, shadcn/ui components
+- **Dev tools:** Biome, TypeScript, Vite
+
+<Note>
+The first installation may take 2-3 minutes depending on your internet connection.
+</Note>
+
+### Step 3: Environment Configuration
+
+Create a `.env.local` file in the project root with your API keys and configuration:
+
+<CodeGroup>
+```bash .env.local (Full Configuration)
+# TMDB API Configuration
+VITE_TMDB_ACCESS_TOKEN=eyJhbGciOiJIUzI1NiJ9.your_actual_token_here
+VITE_TMDB_API_URL=https://api.themoviedb.org/3
+
+# Clerk Authentication
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_your_key_here
+CLERK_SECRET_KEY=sk_test_your_secret_here
+
+# Convex Backend
+VITE_CONVEX_URL=https://your-project.convex.cloud
+CONVEX_DEPLOY_KEY=prod:your-project|your_deploy_key_here
+
+# Convex + Clerk Integration
+CONVEX_CLERK_ISSUER_URL=https://your-clerk-domain.clerk.accounts.dev
+```
+
+```bash .env.local (Minimal - TMDB Only)
+# Minimal configuration for local development without auth
+VITE_TMDB_ACCESS_TOKEN=eyJhbGciOiJIUzI1NiJ9.your_actual_token_here
+VITE_TMDB_API_URL=https://api.themoviedb.org/3
+```
+</CodeGroup>
+
+<Warning>
+Never commit `.env.local` to version control. It's already included in `.gitignore`.
+</Warning>
+
+### Step 4: Set Up Convex (Optional)
+
+If you're using Convex for backend functionality:
+
+```bash
+# Initialize Convex in your project
+npx convex dev
+```
+
+This will:
+1. Prompt you to log in to Convex
+2. Link your local project to your Convex deployment
+3. Deploy the schema and functions from the `/convex` directory
+4. Start watching for changes
+
+<Tip>
+The Convex dev server will output your `VITE_CONVEX_URL`. Copy this to your `.env.local` file.
+</Tip>
+
+### Step 5: Configure Clerk + Convex Integration (Optional)
+
+If using both Clerk and Convex:
+
+1. **In Clerk Dashboard:**
+   - Go to your application settings
+   - Copy your issuer URL (usually `https://<your-domain>.clerk.accounts.dev`)
+
+2. **In `.env.local`:**
+   ```bash
+   CONVEX_CLERK_ISSUER_URL=https://your-domain.clerk.accounts.dev
+   ```
+
+3. **In Convex Dashboard:**
+   - Go to Settings → Environment Variables
+   - Add `CLERK_ISSUER_URL` with the same value
+
+The integration is configured in `convex/auth.config.ts`:
+
+```typescript
+export default {
+  providers: [
+    {
+      domain: process.env.CONVEX_CLERK_ISSUER_URL,
+      applicationID: "convex",
+    },
+  ],
+};
+```
+
+### Step 6: Start Development
+
+Launch the full development environment:
+
+```bash
+pnpm dev
+```
+
+This runs two processes in parallel:
+- **Vite dev server** on `http://localhost:3000` (frontend)
+- **Convex dev** (backend functions with hot reload)
+
+You should see output similar to:
+
+```bash
+> npm-run-all --parallel dev:vite dev:convex
+
+VITE v7.1.7  ready in 1203 ms
+➜  Local:   http://localhost:3000/
+➜  Network: http://192.168.1.100:3000/
+
+Convex functions deployed
+```
+
+## Project Structure Overview
+
+Understanding the codebase structure:
+
+```
+film-fanatic/
+├── convex/                   # Backend (Convex)
+│   ├── _generated/           # Auto-generated Convex code
+│   ├── auth.config.ts        # Clerk authentication config
+│   ├── schema.ts             # Database schema
+│   ├── users.ts              # User management functions
+│   └── watchlist.ts          # Watchlist mutations/queries
+│
+├── src/                      # Frontend (React)
+│   ├── components/           # UI components
+│   │   ├── ui/              # shadcn/ui base components
+│   │   └── ...              # Feature-specific components
+│   ├── hooks/               # Custom React hooks
+│   ├── lib/                 # Utilities and clients
+│   ├── routes/              # TanStack Router pages
+│   ├── constants.ts         # App constants
+│   ├── types.d.ts           # TypeScript type definitions
+│   └── styles.css           # Global Tailwind styles
+│
+├── public/                   # Static assets
+├── .env.local               # Environment variables (create this)
+├── package.json             # Dependencies and scripts
+├── tsconfig.json            # TypeScript configuration
+├── vite.config.ts           # Vite build configuration
+└── biome.json              # Biome linter/formatter config
+```
+
+## Database Schema
+
+Film Fanatic uses Convex with the following schema (defined in `convex/schema.ts`):
+
+### Users Table
+```typescript
+users: {
+  tokenIdentifier: string,
+  name?: string,
+  image?: string,
+  email?: string
+}
+```
+
+### Watch Items Table
+```typescript
+watch_items: {
+  userId: Id<"users">,
+  tmdbId: number,
+  mediaType: "movie" | "tv",
+  inWatchlist?: boolean,
+  progressStatus?: "want-to-watch" | "watching" | "finished",
+  reaction?: "loved" | "liked" | "mixed" | "not-for-me",
+  progress?: number,  // 0-100
+  title?: string,
+  image?: string,
+  rating?: number,
+  release_date?: string,
+  overview?: string,
+  updatedAt: number
+}
+```
+
+### Episode Progress Table
+```typescript
+episode_progress: {
+  userId: Id<"users">,
+  tmdbId: number,
+  season: number,
+  episode: number,
+  isWatched: boolean,
+  updatedAt: number
+}
+```
+
+## Build for Production
+
+When you're ready to deploy:
+
+```bash
+# Type check and build
+pnpm build
+```
+
+This will:
+1. Run TypeScript type checking
+2. Build the Vite bundle with optimizations:
+   - Terser minification
+   - Code splitting (vendor, tanstack, convex, clerk chunks)
+   - Tree shaking
+   - Console removal in production
+
+The build output is in `.output/` directory.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Convex deployment fails">
+    **Issue:** `npx convex dev` fails with authentication errors
+    
+    **Solutions:**
+    1. Ensure you're logged in: `npx convex login`
+    2. Check your Convex dashboard has the correct project
+    3. Verify `CONVEX_DEPLOY_KEY` in `.env.local` matches your project
+    4. Try `npx convex dev --once` to force a single deployment
+  </Accordion>
+
+  <Accordion title="Clerk authentication not working">
+    **Issue:** Sign in/up buttons don't work or return errors
+    
+    **Solutions:**
+    1. Verify both `VITE_CLERK_PUBLISHABLE_KEY` and `CLERK_SECRET_KEY` are set
+    2. Check that your Clerk application is in development mode
+    3. Ensure `CONVEX_CLERK_ISSUER_URL` matches your Clerk domain exactly
+    4. Restart the dev server after changing environment variables
+    5. Check Clerk dashboard → Sessions → Settings for allowed domains
+  </Accordion>
+
+  <Accordion title="TMDB images not loading">
+    **Issue:** Movie posters and images show broken image placeholders
+    
+    **Solutions:**
+    1. Verify `VITE_TMDB_ACCESS_TOKEN` is the v4 Read Access Token (not v3 API key)
+    2. Check the token hasn't expired
+    3. Ensure `VITE_TMDB_API_URL=https://api.themoviedb.org/3` is set correctly
+    4. Test the API directly:
+       ```bash
+       curl -H "Authorization: Bearer YOUR_TOKEN" \
+         https://api.themoviedb.org/3/movie/popular
+       ```
+  </Accordion>
+
+  <Accordion title="TypeScript errors on build">
+    **Issue:** `pnpm build` fails with TypeScript errors
+    
+    **Solutions:**
+    1. Run `pnpm check` to see all type errors
+    2. Ensure all dependencies are installed: `pnpm install`
+    3. Clear TypeScript cache: `rm -rf node_modules/.vite`
+    4. Check `tsconfig.json` is correctly configured
+    5. Update TypeScript: `pnpm add -D typescript@latest`
+  </Accordion>
+
+  <Accordion title="Port conflicts">
+    **Issue:** Port 3000 is already in use
+    
+    **Solutions:**
+    1. Change the port in `package.json`:
+       ```json
+       "dev:vite": "vite dev --port 3001 --host"
+       ```
+    2. Or kill the process using port 3000:
+       ```bash
+       # macOS/Linux
+       lsof -ti:3000 | xargs kill -9
+       
+       # Windows
+       netstat -ano | findstr :3000
+       taskkill /PID <PID> /F
+       ```
+  </Accordion>
+
+  <Accordion title="Module resolution errors">
+    **Issue:** Import errors like `Cannot find module '@/components/...'`
+    
+    **Solutions:**
+    1. Verify `tsconfig.json` has the path alias:
+       ```json
+       "paths": {
+         "@/*": ["./src/*"]
+       }
+       ```
+    2. Check `vite.config.ts` includes `vite-tsconfig-paths` plugin
+    3. Restart your IDE/editor TypeScript server
+    4. Clear cache: `rm -rf node_modules/.vite`
+  </Accordion>
+</AccordionGroup>
+
+## Development Scripts Reference
+
+All available npm scripts from `package.json`:
+
+| Command | Description |
+| --- | --- |
+| `pnpm dev` | Start both Vite and Convex dev servers in parallel |
+| `pnpm dev:vite` | Start only the Vite frontend dev server (port 3000) |
+| `pnpm dev:convex` | Start only the Convex backend dev server |
+| `pnpm build` | Type check and build for production |
+| `pnpm serve` | Build and start production server |
+| `pnpm vite:serve` | Preview production build locally |
+| `pnpm format` | Format code with Biome |
+| `pnpm lint` | Lint code with Biome (max 20 diagnostics) |
+| `pnpm lint:fix` | Auto-fix linting issues |
+| `pnpm check` | Run Biome check and TypeScript type checking |
+| `pnpm check:fix` | Auto-fix all checkable issues |
+
+<Tip>
+Run `pnpm check` before every commit to ensure code quality.
+</Tip>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Customize themes, features, and settings
+  </Card>
+  
+  <Card title="Development Guide" icon="code" href="/development">
+    Learn about the codebase architecture
+  </Card>
+  
+  <Card title="API Integration" icon="plug" href="/api/tmdb/client">
+    Working with TMDB and Convex APIs
+  </Card>
+  
+  <Card title="Configuration" icon="rocket" href="/configuration/environment-variables">
+    Configure environment variables and services
+  </Card>
+</CardGroup>

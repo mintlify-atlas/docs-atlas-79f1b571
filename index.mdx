@@ -1,97 +1,372 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Film Fanatic Documentation"
+description: "A premium media discovery and tracking platform for the modern cinephile"
+mode: "custom"
 ---
 
-## Setting up
+<div className="relative overflow-hidden dark:bg-[#0f1117] bg-white">
+  {/* Hero Section */}
+  <div className="relative py-20 px-4 sm:px-6 lg:px-8" style={{
+    background: 'linear-gradient(135deg, #6ca0fc 0%, #4A90E2 100%)'
+  }}>
+    <div className="absolute inset-0 bg-black/40"></div>
+    <div className="relative max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+        <div className="lg:col-span-7">
+          <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-6">
+            Welcome to Film Fanatic Documentation
+          </h1>
+          <p className="text-base sm:text-lg lg:text-xl text-white/90 max-w-2xl mb-8">
+            Build and customize your own media discovery platform with real-time synchronization, 
+            intelligent search, and granular tracking for movies and TV shows.
+          </p>
+          <div className="flex flex-wrap gap-3 sm:gap-4">
+            <a 
+              href="/quickstart" 
+              className="inline-flex items-center px-6 py-3 rounded-lg font-semibold text-white transition-colors"
+              style={{ backgroundColor: '#2563eb' }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#1d4ed8'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#2563eb'}
+            >
+              Get Started
+              <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </a>
+            <a 
+              href="/api/hooks/use-watchlist" 
+              className="inline-flex items-center px-6 py-3 rounded-lg font-semibold text-white border border-white/30 bg-white/10 hover:bg-white/20 transition-colors"
+            >
+              Explore API Reference
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
-Get your documentation site up and running in minutes.
+  {/* Quick Start Section */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-4">
+      Quick Start
+    </h2>
+    <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+      Get Film Fanatic running locally in just a few steps
+    </p>
 
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
+    <Steps>
+      <Step title="Clone and Install">
+        Clone the repository and install dependencies with your preferred package manager.
 
-## Make it yours
+        <CodeGroup>
+        ```bash npm
+        git clone https://github.com/Swastikdan/Film-Fanatic.git
+        cd film-fanatic
+        npm install
+        ```
 
-Design a docs site that looks great and empowers your users.
+        ```bash pnpm
+        git clone https://github.com/Swastikdan/Film-Fanatic.git
+        cd film-fanatic
+        pnpm install
+        ```
 
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
-  </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
-  </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
-  </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
-  </Card>
-</Columns>
+        ```bash yarn
+        git clone https://github.com/Swastikdan/Film-Fanatic.git
+        cd film-fanatic
+        yarn install
+        ```
+        </CodeGroup>
+      </Step>
 
-## Create beautiful pages
+      <Step title="Configure Environment Variables">
+        Create a `.env.local` file with your API keys and service credentials.
 
-Everything you need to create world-class documentation.
+        ```env .env.local
+        # TMDB API
+        VITE_TMDB_ACCESS_TOKEN=your_tmdb_token_here
+        VITE_TMDB_API_URL=https://api.themoviedb.org/3
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+        # Clerk Authentication
+        VITE_CLERK_PUBLISHABLE_KEY=your_clerk_key_here
+        CLERK_SECRET_KEY=your_clerk_secret_here
 
-## Need inspiration?
+        # Convex Backend
+        CONVEX_DEPLOY_KEY=your_convex_key_here
+        VITE_CONVEX_URL=your_convex_url_here
+        ```
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+        <Note>
+          You'll need accounts with [TMDB](https://www.themoviedb.org/settings/api), 
+          [Clerk](https://clerk.com), and [Convex](https://www.convex.dev) to get your API keys.
+        </Note>
+      </Step>
+
+      <Step title="Start Development Server">
+        Run both the Vite dev server and Convex backend simultaneously.
+
+        ```bash
+        pnpm dev
+        ```
+
+        This runs both `vite dev` and `convex dev` in parallel. Your app will be available at `http://localhost:3000`.
+      </Step>
+
+      <Step title="Explore the Platform">
+        Open your browser and start exploring! Search for movies and TV shows, create your watchlist, 
+        and track your viewing progress.
+
+        <Tip>
+          Guest users can use the platform with local storage. Sign in with Clerk to enable 
+          cloud synchronization and access your watchlist from any device.
+        </Tip>
+      </Step>
+    </Steps>
+  </div>
+
+  {/* Core Features Section */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-4">
+      Explore Core Features
+    </h2>
+    <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+      Discover what makes Film Fanatic a powerful media tracking platform
+    </p>
+
+    <CardGroup cols={2}>
+      <Card 
+        title="Media Discovery" 
+        icon="magnifying-glass" 
+        href="/features/media-discovery"
+      >
+        Real-time search across movies, TV shows, and people with rich media context and recommendations
+      </Card>
+      <Card 
+        title="Watchlist Management" 
+        icon="list-check" 
+        href="/features/watchlist"
+      >
+        Hybrid local-first storage with cloud sync, supporting multiple watch statuses and reactions
+      </Card>
+      <Card 
+        title="Episode Tracking" 
+        icon="tv" 
+        href="/features/episode-tracking"
+      >
+        Granular episode-by-episode tracking with automatic progress calculation for TV shows
+      </Card>
+      <Card 
+        title="Advanced Search" 
+        icon="filter" 
+        href="/features/search"
+      >
+        Multi-category search with advanced filtering by rating, type, and popularity
+      </Card>
+    </CardGroup>
+  </div>
+
+  {/* Development Guide Section */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-4">
+      Development Guide
+    </h2>
+    <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+      Learn about the architecture and customize Film Fanatic for your needs
+    </p>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+      <a 
+        href="/development/architecture" 
+        className="group block rounded-2xl border dark:border-[#27272a] border-gray-200 dark:hover:border-[#6ca0fc] hover:border-[#6ca0fc] overflow-hidden no-underline transition-colors"
+      >
+        <div className="h-56 dark:bg-[#1a1d27] bg-gray-50 flex items-center justify-center overflow-hidden">
+          <div className="text-6xl">🏗️</div>
+        </div>
+        <div className="p-6 dark:bg-[#1a1d27] bg-gray-50">
+          <h3 className="text-base font-semibold dark:text-white text-gray-900 mb-2">
+            Architecture Overview
+          </h3>
+          <p className="text-sm dark:text-gray-400 text-gray-600 mb-3">
+            Understand the tech stack: TanStack Start, Convex backend, and React 19 with the React Compiler
+          </p>
+          <div className="flex items-center text-sm dark:text-gray-400 text-gray-600 dark:group-hover:text-[#6ca0fc] group-hover:text-[#6ca0fc] transition-colors">
+            Learn more
+            <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      </a>
+
+      <a 
+        href="/development/components" 
+        className="group block rounded-2xl border dark:border-[#27272a] border-gray-200 dark:hover:border-[#6ca0fc] hover:border-[#6ca0fc] overflow-hidden no-underline transition-colors"
+      >
+        <div className="h-56 dark:bg-[#1a1d27] bg-gray-50 flex items-center justify-center overflow-hidden">
+          <div className="text-6xl">🧩</div>
+        </div>
+        <div className="p-6 dark:bg-[#1a1d27] bg-gray-50">
+          <h3 className="text-base font-semibold dark:text-white text-gray-900 mb-2">
+            Component Library
+          </h3>
+          <p className="text-sm dark:text-gray-400 text-gray-600 mb-3">
+            Explore the UI components built with Radix UI primitives and styled with Tailwind CSS
+          </p>
+          <div className="flex items-center text-sm dark:text-gray-400 text-gray-600 dark:group-hover:text-[#6ca0fc] group-hover:text-[#6ca0fc] transition-colors">
+            Browse components
+            <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      </a>
+
+      <a 
+        href="/development/state-management" 
+        className="group block rounded-2xl border dark:border-[#27272a] border-gray-200 dark:hover:border-[#6ca0fc] hover:border-[#6ca0fc] overflow-hidden no-underline transition-colors"
+      >
+        <div className="h-56 dark:bg-[#1a1d27] bg-gray-50 flex items-center justify-center overflow-hidden">
+          <div className="text-6xl">⚡</div>
+        </div>
+        <div className="p-6 dark:bg-[#1a1d27] bg-gray-50">
+          <h3 className="text-base font-semibold dark:text-white text-gray-900 mb-2">
+            State Management
+          </h3>
+          <p className="text-sm dark:text-gray-400 text-gray-600 mb-3">
+            Learn how Zustand and TanStack Query work together for optimistic updates
+          </p>
+          <div className="flex items-center text-sm dark:text-gray-400 text-gray-600 dark:group-hover:text-[#6ca0fc] group-hover:text-[#6ca0fc] transition-colors">
+            Read guide
+            <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      </a>
+
+      <a 
+        href="/development/routing" 
+        className="group block rounded-2xl border dark:border-[#27272a] border-gray-200 dark:hover:border-[#6ca0fc] hover:border-[#6ca0fc] overflow-hidden no-underline transition-colors"
+      >
+        <div className="h-56 dark:bg-[#1a1d27] bg-gray-50 flex items-center justify-center overflow-hidden">
+          <div className="text-6xl">🛣️</div>
+        </div>
+        <div className="p-6 dark:bg-[#1a1d27] bg-gray-50">
+          <h3 className="text-base font-semibold dark:text-white text-gray-900 mb-2">
+            File-based Routing
+          </h3>
+          <p className="text-sm dark:text-gray-400 text-gray-600 mb-3">
+            Understand TanStack Router's file-based routing system and route configuration
+          </p>
+          <div className="flex items-center text-sm dark:text-gray-400 text-gray-600 dark:group-hover:text-[#6ca0fc] group-hover:text-[#6ca0fc] transition-colors">
+            Explore routes
+            <svg className="ml-1 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  {/* API Reference Section */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-4">
+      API Reference
+    </h2>
+    <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+      Complete documentation for hooks, backend functions, and integrations
+    </p>
+
+    <CardGroup cols={3}>
+      <Card 
+        title="React Hooks" 
+        icon="hook" 
+        href="/api/hooks/use-watchlist"
+      >
+        Watchlist management, progress tracking, and import/export utilities
+      </Card>
+      <Card 
+        title="Convex Backend" 
+        icon="database" 
+        href="/api/convex/watchlist"
+      >
+        Real-time mutations and queries for users, watchlists, and episodes
+      </Card>
+      <Card 
+        title="TMDB Integration" 
+        icon="film" 
+        href="/api/tmdb/client"
+      >
+        Cached API client for fetching movies, TV shows, and metadata
+      </Card>
+    </CardGroup>
+  </div>
+
+  {/* Resources Section */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-4">
+      Resources & Configuration
+    </h2>
+    <p className="text-base dark:text-gray-400 text-gray-600 mb-8">
+      Essential guides for configuring and deploying Film Fanatic
+    </p>
+
+    <CardGroup cols={3}>
+      <Card 
+        title="Environment Setup" 
+        icon="gear" 
+        href="/configuration/environment-variables"
+      >
+        Configure TMDB, Clerk, and Convex API keys
+      </Card>
+      <Card 
+        title="Authentication" 
+        icon="shield-halved" 
+        href="/configuration/authentication"
+      >
+        Set up Clerk authentication and user management
+      </Card>
+      <Card 
+        title="Database Schema" 
+        icon="table" 
+        href="/configuration/database"
+      >
+        Understand the Convex schema and data model
+      </Card>
+    </CardGroup>
+  </div>
+
+  {/* Closing CTA */}
+  <div className="mt-16 mb-16 max-w-5xl mx-auto px-6">
+    <div className="rounded-2xl p-8 sm:p-12 text-center dark:bg-[#1a1d27] bg-gray-50 border dark:border-[#27272a] border-gray-200">
+      <h2 className="text-2xl sm:text-3xl font-semibold dark:text-white text-gray-900 mb-4">
+        Ready to Build Your Media Platform?
+      </h2>
+      <p className="text-base dark:text-gray-400 text-gray-600 max-w-2xl mx-auto mb-8">
+        Follow our quickstart guide to get Film Fanatic running in minutes, or explore the 
+        architecture to understand how everything works together.
+      </p>
+      <div className="flex flex-wrap justify-center gap-3 sm:gap-4">
+        <a 
+          href="/quickstart" 
+          className="inline-flex items-center px-6 py-3 rounded-lg font-semibold text-white transition-colors"
+          style={{ backgroundColor: '#6ca0fc' }}
+          onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5890eb'}
+          onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#6ca0fc'}
+        >
+          Start Building
+          <svg className="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+          </svg>
+        </a>
+        <a 
+          href="https://github.com/Swastikdan/Film-Fanatic" 
+          className="inline-flex items-center px-6 py-3 rounded-lg font-semibold dark:text-white text-gray-900 dark:bg-[#242838] bg-gray-100 dark:hover:bg-[#2e3245] hover:bg-gray-200 transition-colors"
+        >
+          View on GitHub
+        </a>
+      </div>
+    </div>
+  </div>
+</div>

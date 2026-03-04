@@ -1,122 +1,98 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "Film Fanatic",
+  "theme": "palm",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#6ca0fc",
+    "light": "#add8f1",
+    "dark": "#f4f9f9"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://media.brand.dev/b193c7dd-256d-4bf8-8300-0d8d929234bf.svg",
+  "logo": {
+    "light": "https://media.brand.dev/ea7e341c-91c5-4f40-ae9d-fd89c95047df.jpg",
+    "dark": "https://media.brand.dev/b193c7dd-256d-4bf8-8300-0d8d929234bf.svg"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/Swastikdan/Film-Fanatic"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/Swastikdan/Film-Fanatic"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "installation"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Features",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "features/media-discovery",
+              "features/watchlist",
+              "features/episode-tracking",
+              "features/search"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Configuration",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "configuration/environment-variables",
+              "configuration/authentication",
+              "configuration/database"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Development",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "development/architecture",
+              "development/components",
+              "development/state-management",
+              "development/routing"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Backend Functions",
             "pages": [
-              "api-reference/introduction"
+              "api/convex/users",
+              "api/convex/watchlist",
+              "api/convex/episode-progress"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "React Hooks",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/hooks/use-watchlist",
+              "api/hooks/use-watch-progress",
+              "api/hooks/use-local-progress-store",
+              "api/hooks/use-watchlist-import-export"
+            ]
+          },
+          {
+            "group": "TMDB Integration",
+            "pages": [
+              "api/tmdb/client",
+              "api/tmdb/queries"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }
